@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Django / Python virtual environments
+venv/
+.venv/
+env/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Django generated files
+staticfiles/
+media/
+*.log
+
+# SQLite local database
+*.sqlite3
+*.sqlite3-journal
+
+# Node / React
+node_modules/
+dist/
+build/
+.vite/
+
+# Node logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Testing / Python cache
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
