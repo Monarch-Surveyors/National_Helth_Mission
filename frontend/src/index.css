@@ -1,0 +1,100 @@
+/* ==========================================================================
+   National Health Mission - Maharashtra Health Infrastructure
+   Global Styles & Government Portal Theme
+   ========================================================================== */
+
+:root {
+  /* Brand & Portal Colors */
+  --nhm-primary: #1e3a8a;       /* Deep Govt Navy Blue */
+  --nhm-primary-dark: #0f172a;  /* Slate/Midnight 900 */
+  --nhm-primary-light: #2563eb; /* Cobalt Blue */
+  --nhm-accent: #0d9488;        /* Health Teal */
+  --nhm-accent-light: #ccfbf1;  /* Teal Tint */
+  --nhm-success: #059669;       /* Forest Emerald */
+  --nhm-success-bg: #ecfdf5;
+  --nhm-warning: #d97706;       /* Amber Attention */
+  --nhm-warning-bg: #fffbeb;
+  --nhm-danger: #dc2626;        /* Alert Red */
+  --nhm-danger-bg: #fef2f2;
+  --nhm-info: #0284c7;          /* Sky Blue */
+  --nhm-info-bg: #f0f9ff;
+
+  /* Neutral Surface Palette */
+  --bg-app: #f1f5f9;            /* Slate 100 Background */
+  --bg-surface: #ffffff;        /* Crisp White Cards */
+  --bg-subtle: #f8fafc;         /* Slate 50 */
+  --border-color: #e2e8f0;      /* Slate 200 Border */
+  --border-subtle: #cbd5e1;     /* Slate 300 */
+  
+  /* Typography */
+  --text-main: #1e293b;         /* Slate 800 */
+  --text-muted: #64748b;        /* Slate 500 */
+  --text-dim: #94a3b8;          /* Slate 400 */
+  --text-on-dark: #f8fafc;      /* White text on dark navy */
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+
+  /* Dimensions */
+  --sidebar-width: 260px;
+  --navbar-height: 64px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Base Headings */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text-main);
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button, input, select {
+  font-family: inherit;
+}
+
+/* Scrollbar polish */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
