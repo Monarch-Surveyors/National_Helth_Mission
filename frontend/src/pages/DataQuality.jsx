@@ -10,6 +10,11 @@ import { ZERO_SUBMISSION_DISTRICTS } from '../data/districtData';
  * - High-level completeness KPI cards
  * - Detailed Zero-Submission / Missing Land Documentation audit
  * - Data completeness section displaying '--' placeholders
+ *
+ * NOTE: Currently displays verified baseline reporting audit.
+ * Future Django Aggregate APIs Needed:
+ * - GET /api/analytics/data-quality-summary/ (Completeness percentages by attribute)
+ * - GET /api/analytics/zero-submission-districts/ (Districts with zero reporting)
  */
 function DataQuality() {
   // Quality completeness metrics

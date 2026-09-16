@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   BarChart,
   Bar,
@@ -19,6 +19,7 @@ import {
   KEY_INSIGHTS
 } from '../data/dashboardData';
 import { AUDITED_DISTRICTS } from '../data/districtData';
+import { getDistricts, getFacilityTypes, getOwnershipTypes } from '../services/api';
 
 /**
  * Dashboard Page
@@ -27,11 +28,37 @@ import { AUDITED_DISTRICTS } from '../data/districtData';
  * Connects directly to centralized static datasets.
  */
 function Dashboard() {
-  // Static filter state (for UI prototype; no API calls)
+  // Filter state
   const [selectedDistrict, setSelectedDistrict] = useState('All');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedFacilityType, setSelectedFacilityType] = useState('All');
   const [selectedOwnership, setSelectedOwnership] = useState('All');
+
+  // Dynamic dropdown data loaded from live Django APIs
+  const [districts, setDistricts] = useState([]);
+  const [facilityTypes, setFacilityTypes] = useState([]);
+  const [ownershipTypes, setOwnershipTypes] = useState([]);
+
+  useEffect(() => {
+    let mounted = true;
+    Promise.allSettled([
+      getDistricts(),
+      getFacilityTypes(),
+      getOwnershipTypes()
+    ]).then(([dRes, fRes, oRes]) => {
+      if (!mounted) return;
+      if (dRes.status === 'fulfilled' && Array.isArray(dRes.value) && dRes.value.length > 0) {
+        setDistricts(dRes.value);
+      }
+      if (fRes.status === 'fulfilled' && Array.isArray(fRes.value) && fRes.value.length > 0) {
+        setFacilityTypes(fRes.value);
+      }
+      if (oRes.status === 'fulfilled' && Array.isArray(oRes.value) && oRes.value.length > 0) {
+        setOwnershipTypes(oRes.value);
+      }
+    });
+    return () => { mounted = false; };
+  }, []);
 
   // KPI cards configuration from verified statewide data
   const kpiData = [
@@ -54,7 +81,7 @@ function Dashboard() {
               Public Health Department • Executive Infrastructure & Facilities Baseline
             </p>
           </div>
-          <span className="badge badge-primary">Baseline 2026</span>
+          <span className="badge badge-primary">Statewide Baseline — Aggregate API Pending</span>
         </div>
       </div>
 
@@ -68,12 +95,22 @@ function Dashboard() {
             onChange={(e) => setSelectedDistrict(e.target.value)}
           >
             <option value="All">All Districts (Statewide)</option>
-            <option value="Akola">Akola</option>
-            <option value="Amravati">Amravati</option>
-            <option value="Chandrapur">Chandrapur</option>
-            <option value="Nashik">Nashik</option>
-            <option value="Pune">Pune</option>
-            <option value="Thane">Thane</option>
+            {districts.length > 0 ? (
+              districts.map((d) => (
+                <option key={d.id || d.district_name || d.name} value={d.district_name || d.name}>
+                  {d.district_name || d.name}
+                </option>
+              ))
+            ) : (
+              <>
+                <option value="Akola">Akola</option>
+                <option value="Amravati">Amravati</option>
+                <option value="Chandrapur">Chandrapur</option>
+                <option value="Nashik">Nashik</option>
+                <option value="Pune">Pune</option>
+                <option value="Thane">Thane</option>
+              </>
+            )}
           </select>
         </div>
 
@@ -100,18 +137,28 @@ function Dashboard() {
             onChange={(e) => setSelectedFacilityType(e.target.value)}
           >
             <option value="All">All Facility Types</option>
-            <option value="SC">Sub-Centres (SC)</option>
-            <option value="PHC">Primary Health Centres (PHC)</option>
-            <option value="RH">Rural Hospitals (RH)</option>
-            <option value="DH">District Hospitals (DH)</option>
-            <option value="GH">General Hospitals (GH)</option>
-            <option value="SSH">Super Specialty Hospitals (SSH)</option>
-            <option value="SDH">Sub-District Hospitals (SDH)</option>
-            <option value="UPHC">Urban PHCs (UPHC)</option>
-            <option value="UCHC">Urban CHCs (UCHC)</option>
-            <option value="UHWC">Urban Health & Wellness (UHWC)</option>
-            <option value="HBT">HBT / Aapla Dawakhana</option>
-            <option value="Offices">Administrative Offices</option>
+            {facilityTypes.length > 0 ? (
+              facilityTypes.map((ft) => (
+                <option key={ft.id || ft.code || ft.name} value={ft.code || ft.name}>
+                  {ft.name ? `${ft.name}${ft.code ? ` (${ft.code})` : ''}` : ft.code}
+                </option>
+              ))
+            ) : (
+              <>
+                <option value="SC">Sub-Centres (SC)</option>
+                <option value="PHC">Primary Health Centres (PHC)</option>
+                <option value="RH">Rural Hospitals (RH)</option>
+                <option value="DH">District Hospitals (DH)</option>
+                <option value="GH">General Hospitals (GH)</option>
+                <option value="SSH">Super Specialty Hospitals (SSH)</option>
+                <option value="SDH">Sub-District Hospitals (SDH)</option>
+                <option value="UPHC">Urban PHCs (UPHC)</option>
+                <option value="UCHC">Urban CHCs (UCHC)</option>
+                <option value="UHWC">Urban Health & Wellness (UHWC)</option>
+                <option value="HBT">HBT / Aapla Dawakhana</option>
+                <option value="Offices">Administrative Offices</option>
+              </>
+            )}
           </select>
         </div>
 
@@ -123,12 +170,22 @@ function Dashboard() {
             onChange={(e) => setSelectedOwnership(e.target.value)}
           >
             <option value="All">All Ownership Types</option>
-            <option value="Government">Government</option>
-            <option value="Private">Private</option>
-            <option value="Rented">Rented</option>
-            <option value="Forest">Forest</option>
-            <option value="Leased">Leased</option>
-            <option value="Unknown">Unknown</option>
+            {ownershipTypes.length > 0 ? (
+              ownershipTypes.map((ot) => (
+                <option key={ot.id || ot.name} value={ot.name}>
+                  {ot.name}
+                </option>
+              ))
+            ) : (
+              <>
+                <option value="Government">Government</option>
+                <option value="Private">Private</option>
+                <option value="Rented">Rented</option>
+                <option value="Forest">Forest</option>
+                <option value="Leased">Leased</option>
+                <option value="Unknown">Unknown</option>
+              </>
+            )}
           </select>
         </div>
       </FilterBar>

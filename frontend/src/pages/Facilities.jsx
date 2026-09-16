@@ -1,136 +1,304 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import ChartCard from '../components/ChartCard';
 import FilterBar from '../components/FilterBar';
 import StatusBadge from '../components/StatusBadge';
-import { DEMO_FACILITIES } from '../data/facilityDemoData';
+import {
+  getDistricts,
+  getTalukas,
+  getFacilityTypes,
+  getOwnershipTypes,
+  getFacilities,
+  getOffices
+} from '../services/api';
 
 /**
- * Facilities Page
+ * Facilities & Offices Page
  *
- * Professional Facility Directory with:
- * - Category Tabs: [All] [Rural] [Hospitals] [Urban] [Offices]
- * - Multi-criteria filters
- * - Client-side search and pagination
- * - Standardized 5-section detail modal
+ * Exclusively displays live data from Django backend APIs:
+ * - GET /api/facility-types/
+ * - GET /api/ownership-types/
+ * - GET /api/districts/
+ * - GET /api/talukas/?district_id=<id>
+ * - GET /api/facilities/
+ * - GET /api/offices/
+ *
+ * No static/demo data, no fake metrics, and no hardcoded fallback records.
  */
 function Facilities() {
-  // Category tabs state
-  const [activeTab, setActiveTab] = useState('All');
+  const location = useLocation();
+  const navigate = useNavigate();
 
-  // Filter state
+  // Active view: 'Facilities' or 'Offices' (derived from URL path or local state)
+  const isOfficesRoute = location.pathname.includes('/offices');
+  const [activeTab, setActiveTab] = useState(isOfficesRoute ? 'Offices' : 'Facilities');
+
+  // Keep activeTab in sync with route
+  useEffect(() => {
+    if (location.pathname.includes('/offices')) {
+      setActiveTab('Offices');
+    } else {
+      setActiveTab('Facilities');
+    }
+  }, [location.pathname]);
+
+  // Lookup metadata loaded from APIs
+  const [districts, setDistricts] = useState([]);
+  const [talukas, setTalukas] = useState([]);
+  const [facilityTypes, setFacilityTypes] = useState([]);
+  const [ownershipTypes, setOwnershipTypes] = useState([]);
+  const [talukasLoading, setTalukasLoading] = useState(false);
+
+  // Filter state (Numeric IDs sent to backend)
+  const [districtId, setDistrictId] = useState('All');
+  const [talukaId, setTalukaId] = useState('All');
+  const [facilityTypeId, setFacilityTypeId] = useState('All');
+  const [ownershipTypeId, setOwnershipTypeId] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
-  const [districtFilter, setDistrictFilter] = useState('All');
-  const [talukaFilter, setTalukaFilter] = useState('All');
-  const [typeFilter, setTypeFilter] = useState('All');
-  const [ownershipFilter, setOwnershipFilter] = useState('All');
-  const [docFilter, setDocFilter] = useState('All');
-  const [statusFilter, setStatusFilter] = useState('All');
+
+  // Primary data state
+  const [records, setRecords] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 6;
 
-  // Detail Modal inspection
-  const [selectedFacility, setSelectedFacility] = useState(null);
+  // Selected item for detail modal
+  const [selectedItem, setSelectedItem] = useState(null);
 
-  // Subtype mapping based on active category
-  const categorySubtypes = {
-    Rural: ['SC', 'PHC', 'RH'],
-    Hospitals: ['DH', 'GH', 'SSH', 'SDH-100', 'SDH-50', 'RH', 'WH', 'RMH'],
-    Urban: ['UCHC', 'UPHC', 'UHWC', 'HBT / Aapla Dawakhana'],
-    Offices: ['Administrative / Health Office']
-  };
+  // 1. Load Filter Metadata (Districts, Facility Types, Ownership Types) on mount
+  useEffect(() => {
+    let isMounted = true;
 
-  // Switch tabs handler
+    async function loadMetadata() {
+      try {
+        const [dList, ftList, otList] = await Promise.allSettled([
+          getDistricts(),
+          getFacilityTypes(),
+          getOwnershipTypes()
+        ]);
+
+        if (isMounted) {
+          if (dList.status === 'fulfilled') setDistricts(dList.value);
+          if (ftList.status === 'fulfilled') setFacilityTypes(ftList.value);
+          if (otList.status === 'fulfilled') setOwnershipTypes(otList.value);
+        }
+      } catch {
+        if (isMounted) {
+          setError('Unable to connect to the backend API.');
+        }
+      }
+    }
+
+    loadMetadata();
+    return () => { isMounted = false; };
+  }, []);
+
+  // 2. Cascading Filter: Load Talukas whenever districtId changes
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!districtId || districtId === 'All') {
+      setTalukas([]);
+      setTalukaId('All');
+      return;
+    }
+
+    async function loadTalukas() {
+      setTalukasLoading(true);
+      try {
+        const tList = await getTalukas(districtId);
+        if (isMounted) {
+          setTalukas(tList);
+        }
+      } catch {
+        if (isMounted) setTalukas([]);
+      } finally {
+        if (isMounted) setTalukasLoading(false);
+      }
+    }
+
+    setTalukaId('All');
+    loadTalukas();
+    return () => { isMounted = false; };
+  }, [districtId]);
+
+  // 3. Fetch Facilities or Offices from live APIs
+  useEffect(() => {
+    let isMounted = true;
+
+    async function fetchData() {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const filters = {
+          district_id: districtId !== 'All' ? districtId : undefined,
+          taluka_id: talukaId !== 'All' ? talukaId : undefined,
+          ownership_type_id: ownershipTypeId !== 'All' ? ownershipTypeId : undefined,
+        };
+
+        let result = [];
+        if (activeTab === 'Offices') {
+          result = await getOffices(filters);
+        } else {
+          if (facilityTypeId !== 'All') {
+            filters.facility_type_id = facilityTypeId;
+          }
+          result = await getFacilities(filters);
+        }
+
+        if (isMounted) {
+          setRecords(result);
+          setError(null);
+          setCurrentPage(1);
+        }
+      } catch {
+        if (isMounted) {
+          setError('Unable to connect to the backend API.');
+          setRecords([]);
+        }
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+
+    fetchData();
+    return () => { isMounted = false; };
+  }, [activeTab, districtId, talukaId, facilityTypeId, ownershipTypeId]);
+
+  // Tab change handler
   const handleTabChange = (tab) => {
     setActiveTab(tab);
-    setTypeFilter('All'); // Reset type filter when category tab changes
+    setFacilityTypeId('All');
+    setCurrentPage(1);
+    navigate(tab === 'Offices' ? '/offices' : '/facilities');
+  };
+
+  // Reset all filters to default state
+  const handleResetFilters = () => {
+    setDistrictId('All');
+    setTalukaId('All');
+    setFacilityTypeId('All');
+    setOwnershipTypeId('All');
+    setSearchTerm('');
+    setTalukas([]);
     setCurrentPage(1);
   };
 
-  // Multi-criteria client-side filter
-  const filteredFacilities = DEMO_FACILITIES.filter((facility) => {
-    // Category Tab match
-    if (activeTab !== 'All' && facility.category !== activeTab) {
-      return false;
-    }
-
-    // Search query match (facility name or taluka)
-    if (searchTerm.trim() !== '') {
-      const q = searchTerm.toLowerCase();
-      const matchName = facility.name.toLowerCase().includes(q);
-      const matchTaluka = facility.taluka.toLowerCase().includes(q);
-      if (!matchName && !matchTaluka) return false;
-    }
-
-    // Dropdown filters
-    if (districtFilter !== 'All' && facility.district !== districtFilter) return false;
-    if (talukaFilter !== 'All' && facility.taluka !== talukaFilter) return false;
-    if (typeFilter !== 'All' && facility.type !== typeFilter) return false;
-    if (ownershipFilter !== 'All' && facility.ownership !== ownershipFilter) return false;
-    if (docFilter !== 'All' && !facility.legalDocument.toLowerCase().includes(docFilter.toLowerCase())) return false;
-    if (statusFilter !== 'All' && facility.status !== statusFilter) return false;
-
-    return true;
+  // Client-side text search over live records
+  const filteredRecords = records.filter((item) => {
+    if (!searchTerm.trim()) return true;
+    const q = searchTerm.toLowerCase();
+    const matchName = String(item.name || '').toLowerCase().includes(q);
+    const matchTaluka = String(item.taluka || '').toLowerCase().includes(q);
+    const matchAddress = String(item.address || '').toLowerCase().includes(q);
+    return matchName || matchTaluka || matchAddress;
   });
 
   // Calculate pagination slice
-  const totalPages = Math.ceil(filteredFacilities.length / pageSize) || 1;
-  const displayedFacilities = filteredFacilities.slice(
+  const totalPages = Math.ceil(filteredRecords.length / pageSize) || 1;
+  const displayedRecords = filteredRecords.slice(
     (currentPage - 1) * pageSize,
     currentPage * pageSize
   );
 
   return (
     <div>
-      {/* Header */}
+      {/* Page Header */}
       <div className="page-header">
         <div className="page-header-top">
           <div>
-            <h1 className="page-title">Health Facilities Directory</h1>
+            <h1 className="page-title">
+              {activeTab === 'Offices' ? 'Administrative Health Offices' : 'Health Facilities Directory'}
+            </h1>
             <p className="page-subtitle">
-              Interactive registry of public health infrastructure across Maharashtra
+              {activeTab === 'Offices'
+                ? 'Public health administrative offices and directorates across Maharashtra'
+                : 'Public health infrastructure registry across Maharashtra'}
             </p>
           </div>
-          <span className="badge badge-warning" style={{ padding: '6px 14px', fontSize: '12px' }}>
-            Demo / Static Data
-          </span>
+          {!error && !loading && (
+            <span className="badge badge-success" style={{ padding: '6px 14px', fontSize: '12px' }}>
+              ● Live API Data
+            </span>
+          )}
         </div>
       </div>
 
-      {/* Top-Level Category Tabs */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
-        {['All', 'Rural', 'Hospitals', 'Urban', 'Offices'].map((tab) => (
-          <button
-            key={tab}
-            type="button"
-            onClick={() => handleTabChange(tab)}
-            style={{
-              padding: '8px 18px',
-              borderRadius: '6px',
-              border: activeTab === tab ? '1px solid #1e3a8a' : '1px solid #cbd5e1',
-              background: activeTab === tab ? '#1e3a8a' : '#ffffff',
-              color: activeTab === tab ? '#ffffff' : '#334155',
-              fontWeight: 600,
-              fontSize: '13px',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-              boxShadow: activeTab === tab ? '0 2px 4px rgba(30, 58, 138, 0.2)' : 'none'
-            }}
-          >
-            {tab === 'All' ? 'All Facilities' : tab}
-          </button>
-        ))}
+      {/* API Error Banner */}
+      {error && (
+        <div
+          className="attention-card warning"
+          style={{
+            marginBottom: '16px',
+            padding: '12px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px'
+          }}
+        >
+          <span style={{ fontSize: '18px' }}>⚠️</span>
+          <div>
+            <strong style={{ color: '#92400e', fontSize: '13px' }}>{error}</strong>
+            <div style={{ fontSize: '12px', color: '#b45309' }}>
+              Please verify that the Django backend server is running on port 8000.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Navigation Tabs (Facilities / Offices) */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+        <button
+          type="button"
+          onClick={() => handleTabChange('Facilities')}
+          style={{
+            padding: '8px 20px',
+            borderRadius: '6px',
+            border: activeTab === 'Facilities' ? '1px solid #1e3a8a' : '1px solid #cbd5e1',
+            background: activeTab === 'Facilities' ? '#1e3a8a' : '#ffffff',
+            color: activeTab === 'Facilities' ? '#ffffff' : '#334155',
+            fontWeight: 600,
+            fontSize: '13px',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
+            boxShadow: activeTab === 'Facilities' ? '0 2px 4px rgba(30, 58, 138, 0.2)' : 'none'
+          }}
+        >
+          Health Facilities
+        </button>
+        <button
+          type="button"
+          onClick={() => handleTabChange('Offices')}
+          style={{
+            padding: '8px 20px',
+            borderRadius: '6px',
+            border: activeTab === 'Offices' ? '1px solid #1e3a8a' : '1px solid #cbd5e1',
+            background: activeTab === 'Offices' ? '#1e3a8a' : '#ffffff',
+            color: activeTab === 'Offices' ? '#ffffff' : '#334155',
+            fontWeight: 600,
+            fontSize: '13px',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
+            boxShadow: activeTab === 'Offices' ? '0 2px 4px rgba(30, 58, 138, 0.2)' : 'none'
+          }}
+        >
+          Administrative Offices
+        </button>
       </div>
 
-      {/* Comprehensive Filter Bar */}
+      {/* API-Supported Filter Bar */}
       <FilterBar title="Directory Filters">
+        {/* Text Search */}
         <div className="filter-group">
-          <label className="filter-label">Search Facility Name / Taluka</label>
+          <label className="filter-label">Search Name / Taluka</label>
           <input
             type="text"
             className="filter-input"
-            placeholder="Search facility name..."
+            placeholder="Search name, taluka..."
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value);
@@ -139,156 +307,120 @@ function Facilities() {
           />
         </div>
 
+        {/* Dynamic District Filter */}
         <div className="filter-group">
           <label className="filter-label">District</label>
           <select
             className="filter-select"
-            value={districtFilter}
-            onChange={(e) => {
-              setDistrictFilter(e.target.value);
-              setCurrentPage(1);
-            }}
+            value={districtId}
+            onChange={(e) => setDistrictId(e.target.value)}
           >
             <option value="All">All Districts</option>
-            <option value="Akola">Akola</option>
-            <option value="Amravati">Amravati</option>
-            <option value="Chandrapur">Chandrapur</option>
-            <option value="Nandurbar">Nandurbar</option>
-            <option value="Nashik">Nashik</option>
-            <option value="Palghar">Palghar</option>
-            <option value="Pune">Pune</option>
-            <option value="Thane">Thane</option>
+            {districts.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
+            ))}
           </select>
         </div>
 
+        {/* Cascading Taluka Filter */}
         <div className="filter-group">
-          <label className="filter-label">Taluka / Block</label>
-          <input
-            type="text"
-            className="filter-input"
-            placeholder="e.g. Mulshi, Dindori..."
-            value={talukaFilter === 'All' ? '' : talukaFilter}
-            onChange={(e) => {
-              setTalukaFilter(e.target.value.trim() === '' ? 'All' : e.target.value);
-              setCurrentPage(1);
-            }}
-          />
-        </div>
-
-        <div className="filter-group">
-          <label className="filter-label">Facility Sub-Type</label>
+          <label className="filter-label">
+            Taluka / Block {talukasLoading && '⏳'}
+          </label>
           <select
             className="filter-select"
-            value={typeFilter}
+            value={talukaId}
+            disabled={districtId === 'All' || talukasLoading}
             onChange={(e) => {
-              setTypeFilter(e.target.value);
+              setTalukaId(e.target.value);
               setCurrentPage(1);
             }}
           >
-            <option value="All">All Types</option>
-            {activeTab !== 'All' ? (
-              (categorySubtypes[activeTab] || []).map((t) => (
-                <option key={t} value={t}>{t}</option>
-              ))
-            ) : (
-              <>
-                <optgroup label="Rural">
-                  <option value="SC">Sub-Centres (SC)</option>
-                  <option value="PHC">Primary Health Centres (PHC)</option>
-                  <option value="RH">Rural Hospitals (RH)</option>
-                </optgroup>
-                <optgroup label="Hospitals">
-                  <option value="DH">District Hospital (DH)</option>
-                  <option value="GH">General Hospital (GH)</option>
-                  <option value="SDH-100">SDH-100</option>
-                  <option value="SDH-50">SDH-50</option>
-                  <option value="WH">Women Hospital (WH)</option>
-                  <option value="RMH">Regional Mental Hospital (RMH)</option>
-                </optgroup>
-                <optgroup label="Urban">
-                  <option value="UPHC">Urban PHC (UPHC)</option>
-                  <option value="UCHC">Urban CHC (UCHC)</option>
-                  <option value="UHWC">Urban Health & Wellness (UHWC)</option>
-                  <option value="HBT / Aapla Dawakhana">HBT / Aapla Dawakhana</option>
-                </optgroup>
-                <optgroup label="Offices">
-                  <option value="Administrative / Health Office">Administrative / Health Office</option>
-                </optgroup>
-              </>
-            )}
+            <option value="All">
+              {districtId === 'All' ? 'Select district first' : 'All Talukas'}
+            </option>
+            {talukas.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
           </select>
         </div>
 
+        {/* Dynamic Facility Type Filter (Facilities only) */}
+        {activeTab === 'Facilities' && (
+          <div className="filter-group">
+            <label className="filter-label">Facility Type</label>
+            <select
+              className="filter-select"
+              value={facilityTypeId}
+              onChange={(e) => {
+                setFacilityTypeId(e.target.value);
+                setCurrentPage(1);
+              }}
+            >
+              <option value="All">All Facility Types</option>
+              {facilityTypes.map((ft) => (
+                <option key={ft.id} value={ft.id}>
+                  {ft.label} {ft.code ? `(${ft.code})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Dynamic Ownership Filter */}
         <div className="filter-group">
           <label className="filter-label">Ownership</label>
           <select
             className="filter-select"
-            value={ownershipFilter}
+            value={ownershipTypeId}
             onChange={(e) => {
-              setOwnershipFilter(e.target.value);
+              setOwnershipTypeId(e.target.value);
               setCurrentPage(1);
             }}
           >
-            <option value="All">All Ownerships</option>
-            <option value="Government">Government</option>
-            <option value="Private">Private</option>
-            <option value="Rented">Rented</option>
-            <option value="Forest">Forest</option>
-            <option value="Leased">Leased</option>
+            <option value="All">All Ownership Types</option>
+            {ownershipTypes.map((ot) => (
+              <option key={ot.id} value={ot.id}>
+                {ot.label || ot.name}
+              </option>
+            ))}
           </select>
         </div>
 
-        <div className="filter-group">
-          <label className="filter-label">Legal Document</label>
-          <select
-            className="filter-select"
-            value={docFilter}
-            onChange={(e) => {
-              setDocFilter(e.target.value);
-              setCurrentPage(1);
-            }}
+        {/* Reset Filters Action */}
+        <div className="filter-group" style={{ justifyContent: 'flex-end' }}>
+          <button
+            type="button"
+            className="pagination-btn"
+            style={{ height: '38px', fontWeight: 600, background: '#f1f5f9' }}
+            onClick={handleResetFilters}
           >
-            <option value="All">All Documents</option>
-            <option value="7/12">7/12 Extract</option>
-            <option value="Sanction">Sanction Order</option>
-            <option value="Handover">Handover / Resolution</option>
-            <option value="Pending">Clearance Pending</option>
-          </select>
-        </div>
-
-        <div className="filter-group">
-          <label className="filter-label">Status</label>
-          <select
-            className="filter-select"
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value);
-              setCurrentPage(1);
-            }}
-          >
-            <option value="All">All Statuses</option>
-            <option value="Operational">Operational</option>
-            <option value="Below Benchmark">Below Benchmark</option>
-            <option value="Tenure Review">Tenure Review</option>
-          </select>
+            Reset Filters
+          </button>
         </div>
       </FilterBar>
 
-      {/* Facilities Table Card */}
+      {/* Data Table Card */}
       <ChartCard
-        title="Registered Facilities Directory"
-        subtitle={`Showing ${displayedFacilities.length} of ${filteredFacilities.length} matching entries (Click any row to open full details)`}
-        badge="Demo / Static Data"
+        title={activeTab === 'Offices' ? 'Administrative Health Offices' : 'Registered Health Facilities'}
+        subtitle={
+          loading
+            ? 'Loading live data...'
+            : `Showing ${displayedRecords.length} of ${filteredRecords.length} records (Click row to inspect)`
+        }
       >
         <div className="table-container">
           <table className="data-table">
             <thead>
               <tr>
-                <th>Facility Name</th>
-                <th>Category</th>
+                <th>{activeTab === 'Offices' ? 'Office Name' : 'Facility Name'}</th>
                 <th>Type</th>
                 <th>District</th>
-                <th>Taluka / Block / ULB</th>
+                <th>Taluka / Block</th>
                 <th style={{ textAlign: 'right' }}>Land Area</th>
                 <th>Ownership</th>
                 <th>Document</th>
@@ -297,45 +429,54 @@ function Facilities() {
               </tr>
             </thead>
             <tbody>
-              {displayedFacilities.length > 0 ? (
-                displayedFacilities.map((facility) => (
+              {loading ? (
+                <tr>
+                  <td colSpan="9" style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
+                    <div style={{ display: 'inline-block', fontSize: '14px', fontWeight: 600 }}>
+                      Loading live data...
+                    </div>
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan="9" style={{ textAlign: 'center', padding: '36px', color: '#dc2626', fontWeight: 600 }}>
+                    Unable to connect to the backend API.
+                  </td>
+                </tr>
+              ) : displayedRecords.length > 0 ? (
+                displayedRecords.map((item) => (
                   <tr
-                    key={facility.id}
+                    key={item.id}
                     className="clickable-row"
-                    onClick={() => setSelectedFacility(facility)}
+                    onClick={() => setSelectedItem(item)}
                   >
                     <td style={{ fontWeight: 600, color: '#1e3a8a' }}>
-                      {facility.name}
+                      {item.name}
                     </td>
                     <td>
-                      <span className="badge badge-neutral">{facility.category}</span>
+                      <span className="badge badge-primary">{item.type}</span>
                     </td>
-                    <td>
-                      <span className="badge badge-primary">{facility.type}</span>
-                    </td>
-                    <td>{facility.district}</td>
-                    <td>{facility.taluka}</td>
+                    <td>{item.district}</td>
+                    <td>{item.taluka}</td>
                     <td style={{ textAlign: 'right' }}>
-                      <span className={facility.landArea === '--' ? 'badge badge-danger' : ''}>
-                        {facility.landArea}
-                      </span>
+                      {item.landArea}
                     </td>
                     <td>
                       <span
                         className={`badge ${
-                          facility.ownership === 'Government'
+                          item.ownership === 'Government'
                             ? 'badge-success'
-                            : facility.ownership === 'Rented'
+                            : item.ownership === 'Rented'
                             ? 'badge-warning'
                             : 'badge-neutral'
                         }`}
                       >
-                        {facility.ownership}
+                        {item.ownership}
                       </span>
                     </td>
-                    <td style={{ fontSize: '12px' }}>{facility.legalDocument}</td>
+                    <td style={{ fontSize: '12px' }}>{item.legalDocument}</td>
                     <td>
-                      <StatusBadge text={facility.status} type={facility.status} />
+                      <StatusBadge text={item.status} type={item.status} />
                     </td>
                     <td style={{ textAlign: 'center' }}>
                       <button
@@ -352,7 +493,7 @@ function Facilities() {
                         }}
                         onClick={(e) => {
                           e.stopPropagation();
-                          setSelectedFacility(facility);
+                          setSelectedItem(item);
                         }}
                       >
                         View
@@ -362,8 +503,8 @@ function Facilities() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="10" style={{ textAlign: 'center', padding: '36px', color: '#64748b' }}>
-                    No facility records match the selected criteria.
+                  <td colSpan="9" style={{ textAlign: 'center', padding: '36px', color: '#64748b' }}>
+                    No records found for the selected filters.
                   </td>
                 </tr>
               )}
@@ -374,13 +515,13 @@ function Facilities() {
         {/* Pagination Bar */}
         <div className="pagination-bar">
           <div>
-            Showing Page <strong>{currentPage}</strong> of <strong>{totalPages}</strong>
+            Showing Page <strong>{currentPage}</strong> of <strong>{totalPages}</strong> ({filteredRecords.length} total)
           </div>
           <div className="pagination-controls">
             <button
               type="button"
               className="pagination-btn"
-              disabled={currentPage <= 1}
+              disabled={currentPage <= 1 || loading}
               onClick={() => setCurrentPage((p) => p - 1)}
             >
               Previous
@@ -398,7 +539,7 @@ function Facilities() {
             <button
               type="button"
               className="pagination-btn"
-              disabled={currentPage >= totalPages}
+              disabled={currentPage >= totalPages || loading}
               onClick={() => setCurrentPage((p) => p + 1)}
             >
               Next
@@ -407,21 +548,21 @@ function Facilities() {
         </div>
       </ChartCard>
 
-      {/* Structured 5-Section Facility Detail Modal */}
-      {selectedFacility && (
-        <div className="modal-backdrop" onClick={() => setSelectedFacility(null)}>
+      {/* Standardized 5-Section Detail Modal */}
+      {selectedItem && (
+        <div className="modal-backdrop" onClick={() => setSelectedItem(null)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div>
-                <h3 className="modal-title">{selectedFacility.name}</h3>
-                <span className="badge badge-warning" style={{ marginTop: '4px' }}>
-                  Demo / Static Data
+                <h3 className="modal-title">{selectedItem.name}</h3>
+                <span className="badge badge-primary" style={{ marginTop: '4px' }}>
+                  {selectedItem.type}
                 </span>
               </div>
               <button
                 type="button"
                 className="modal-close-btn"
-                onClick={() => setSelectedFacility(null)}
+                onClick={() => setSelectedItem(null)}
                 aria-label="Close modal"
               >
                 ✕
@@ -429,31 +570,27 @@ function Facilities() {
             </div>
 
             <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              {/* SECTION 1: FACILITY INFORMATION */}
+              {/* SECTION 1: FACILITY / OFFICE INFORMATION */}
               <div>
                 <div style={{ fontSize: '12px', fontWeight: 700, color: '#1e3a8a', textTransform: 'uppercase', letterSpacing: '0.6px', borderBottom: '1px solid #e2e8f0', paddingBottom: '6px', marginBottom: '12px' }}>
-                  1. Facility Information
+                  1. {activeTab === 'Offices' ? 'Office Information' : 'Facility Information'}
                 </div>
                 <div className="detail-grid">
                   <div className="detail-item">
-                    <span className="detail-label">Facility Name</span>
-                    <span className="detail-value">{selectedFacility.name}</span>
+                    <span className="detail-label">Name</span>
+                    <span className="detail-value">{selectedItem.name}</span>
                   </div>
                   <div className="detail-item">
-                    <span className="detail-label">Facility Category</span>
-                    <span className="detail-value">{selectedFacility.category}</span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="detail-label">Facility Type</span>
-                    <span className="detail-value">{selectedFacility.type}</span>
+                    <span className="detail-label">Classification / Type</span>
+                    <span className="detail-value">{selectedItem.type}</span>
                   </div>
                   <div className="detail-item">
                     <span className="detail-label">District</span>
-                    <span className="detail-value">{selectedFacility.district}</span>
+                    <span className="detail-value">{selectedItem.district}</span>
                   </div>
                   <div className="detail-item full-width">
-                    <span className="detail-label">Taluka / Block / ULB</span>
-                    <span className="detail-value">{selectedFacility.taluka}</span>
+                    <span className="detail-label">Taluka / Block</span>
+                    <span className="detail-value">{selectedItem.taluka}</span>
                   </div>
                 </div>
               </div>
@@ -466,11 +603,11 @@ function Facilities() {
                 <div className="detail-grid">
                   <div className="detail-item full-width">
                     <span className="detail-label">Address</span>
-                    <span className="detail-value">{selectedFacility.address || '--'}</span>
+                    <span className="detail-value">{selectedItem.address || '--'}</span>
                   </div>
                   <div className="detail-item">
                     <span className="detail-label">PIN Code</span>
-                    <span className="detail-value">{selectedFacility.pincode || '--'}</span>
+                    <span className="detail-value">{selectedItem.pincode || '--'}</span>
                   </div>
                 </div>
               </div>
@@ -483,19 +620,19 @@ function Facilities() {
                 <div className="detail-grid">
                   <div className="detail-item">
                     <span className="detail-label">Survey / Gat / CTS Number</span>
-                    <span className="detail-value">{selectedFacility.surveyNo || '--'}</span>
+                    <span className="detail-value">{selectedItem.surveyNo || '--'}</span>
                   </div>
                   <div className="detail-item">
                     <span className="detail-label">Total Land Area</span>
-                    <span className="detail-value">{selectedFacility.landArea || '--'}</span>
+                    <span className="detail-value">{selectedItem.landArea || '--'}</span>
                   </div>
                   <div className="detail-item">
                     <span className="detail-label">Ownership Type</span>
-                    <span className="detail-value">{selectedFacility.ownership || '--'}</span>
+                    <span className="detail-value">{selectedItem.ownership || '--'}</span>
                   </div>
                   <div className="detail-item">
                     <span className="detail-label">Legal Document Available</span>
-                    <span className="detail-value">{selectedFacility.legalDocument || '--'}</span>
+                    <span className="detail-value">{selectedItem.legalDocument || '--'}</span>
                   </div>
                 </div>
               </div>
@@ -508,11 +645,11 @@ function Facilities() {
                 <div className="detail-grid">
                   <div className="detail-item">
                     <span className="detail-label">In-charge Name</span>
-                    <span className="detail-value">{selectedFacility.incharge || '--'}</span>
+                    <span className="detail-value">{selectedItem.incharge || '--'}</span>
                   </div>
                   <div className="detail-item">
                     <span className="detail-label">Contact Number</span>
-                    <span className="detail-value">{selectedFacility.contact || '--'}</span>
+                    <span className="detail-value">{selectedItem.contact || '--'}</span>
                   </div>
                 </div>
               </div>
@@ -523,7 +660,7 @@ function Facilities() {
                   5. Remarks
                 </div>
                 <div style={{ fontSize: '13px', color: '#475569', background: '#f8fafc', padding: '12px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
-                  {selectedFacility.remarks || '--'}
+                  {selectedItem.remarks || '--'}
                 </div>
               </div>
             </div>
@@ -532,7 +669,7 @@ function Facilities() {
               <button
                 type="button"
                 className="pagination-btn"
-                onClick={() => setSelectedFacility(null)}
+                onClick={() => setSelectedItem(null)}
               >
                 Close View
               </button>
