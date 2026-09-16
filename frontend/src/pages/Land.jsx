@@ -11,6 +11,11 @@ import { STATUTORY_BENCHMARKS } from '../data/dashboardData';
  * - Reference Statutory Benchmark Section (PHC ≥ 1,000, SC ≥ 250, RH ≥ 3,000 Sq.M)
  * - District Land Comparison Table
  * - Nandurbar land constraint highlight
+ *
+ * NOTE: Currently displays static benchmark & review baseline.
+ * Future Django Aggregate APIs Needed:
+ * - GET /api/analytics/land-summary/ (Total campus area, compliance vs benchmarks)
+ * - GET /api/analytics/land-by-district/ (District land documentation audit)
  */
 function Land() {
   // Land management KPI metrics (strictly placeholders per guidelines)

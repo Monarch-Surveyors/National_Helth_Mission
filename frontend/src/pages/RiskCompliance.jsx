@@ -8,6 +8,11 @@ import { DEMO_RISK_RECORDS } from '../data/facilityDemoData';
  *
  * Tracks health infrastructure legal tenure, land deficiencies,
  * documentation bottlenecks, and priority attention zones.
+ *
+ * NOTE: Currently displays verified baseline risk scenarios and demo records.
+ * Future Django Aggregate APIs Needed:
+ * - GET /api/analytics/compliance-summary/ (Risk counts by category & district)
+ * - GET /api/facilities/?risk_status=critical (Filtered facilities by risk)
  */
 function RiskCompliance() {
   // Risk categories specification

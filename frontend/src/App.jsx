@@ -1,43 +1,39 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import DashboardLayout from './layouts/DashboardLayout';
-import Dashboard from './pages/Dashboard';
 import Facilities from './pages/Facilities';
-import Analytics from './pages/Analytics';
-import Land from './pages/Land';
-import RiskCompliance from './pages/RiskCompliance';
-import DataQuality from './pages/DataQuality';
 import './App.css';
 
 /**
  * App Component
  *
- * Configures client-side routing for the dashboard views using `react-router-dom`.
- * Demonstrates clean, beginner-friendly declarative routing:
+ * Configures client-side routing for the API-supported views:
  * - Master layout wrapping all views (`<DashboardLayout />`)
- * - Default root redirecting to `/dashboard`
- * - Dedicated view routes
- * - Catch-all wildcard redirecting to `/dashboard`
+ * - Default root `/` redirects to `/facilities`
+ * - Dedicated routes for live API data: `/facilities` and `/offices`
+ * - Unsupported routes (`/dashboard`, `/analytics`, `/land`, `/risk-compliance`, `/data-quality`, etc.) redirect to `/facilities`
  */
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Master layout wrapping all dashboard pages */}
         <Route path="/" element={<DashboardLayout />}>
-          {/* Default root redirects to /dashboard */}
-          <Route index element={<Navigate to="/dashboard" replace />} />
+          {/* Default root redirects to /facilities */}
+          <Route index element={<Navigate to="/facilities" replace />} />
 
-          {/* Core Application Routes */}
-          <Route path="dashboard" element={<Dashboard />} />
+          {/* Live API Supported Routes */}
           <Route path="facilities" element={<Facilities />} />
-          <Route path="analytics" element={<Analytics />} />
-          <Route path="land" element={<Land />} />
-          <Route path="risk-compliance" element={<RiskCompliance />} />
-          <Route path="data-quality" element={<DataQuality />} />
+          <Route path="offices" element={<Facilities />} />
 
-          {/* Fallback route */}
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          {/* Unsupported routes redirected to /facilities */}
+          <Route path="dashboard" element={<Navigate to="/facilities" replace />} />
+          <Route path="analytics" element={<Navigate to="/facilities" replace />} />
+          <Route path="land" element={<Navigate to="/facilities" replace />} />
+          <Route path="risk-compliance" element={<Navigate to="/facilities" replace />} />
+          <Route path="data-quality" element={<Navigate to="/facilities" replace />} />
+
+          {/* Catch-all fallback route */}
+          <Route path="*" element={<Navigate to="/facilities" replace />} />
         </Route>
       </Routes>
     </BrowserRouter>

@@ -22,6 +22,11 @@ import { AUDITED_DISTRICTS } from '../data/districtData';
  * - Section C: Multi-Tier District Facility Comparison Chart
  * - Section D: Urban vs Rural Infrastructure Overview
  * - Section E: Key Outliers & Regional Insights
+ *
+ * NOTE: Currently displaying verified static baseline dataset.
+ * Future Django Aggregate APIs Needed:
+ * - GET /api/analytics/ratios/ (SC:PHC distribution by district & terrain)
+ * - GET /api/analytics/tier-comparison/ (District-wise breakdown by tier)
  */
 function Analytics() {
   // SC:PHC Ratio data for the 6 audited districts
