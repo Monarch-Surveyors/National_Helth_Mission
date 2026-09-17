@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 from django.http import JsonResponse
-from sqlalchemy import and_, cast, func
+from sqlalchemy import String, and_, cast, func
 from sqlalchemy.orm import joinedload
 
 from .db_models import (
@@ -51,7 +51,7 @@ def _safe_number(value):
 def _present(column):
     return and_(
         column.isnot(None),
-        func.trim(cast(column, str)) != "",
+        func.trim(cast(column, String)) != "",
     )
 
 
@@ -446,7 +446,7 @@ def analytics_overview(request):
         total_land = (
             facility_query.with_entities(
                 func.coalesce(
-                    func.sum(HealthFacility.total_land_area_sqm),
+                    func.sum(HealthFacility.parsed_area_sqm),
                     0,
                 )
             )
@@ -486,7 +486,7 @@ def analytics_facilities_by_district(request):
                 District.name.label("district"),
                 func.count(HealthFacility.id).label("facility_count"),
                 func.coalesce(
-                    func.sum(HealthFacility.total_land_area_sqm),
+                    func.sum(HealthFacility.parsed_area_sqm),
                     0,
                 ).label("land_area_sqm"),
             )
@@ -575,7 +575,7 @@ def analytics_offices_by_district(request):
                 District.name.label("district"),
                 func.count(Office.id).label("office_count"),
                 func.coalesce(
-                    func.sum(Office.total_land_area_sqm),
+                    func.sum(Office.parsed_area_sqm),
                     0,
                 ).label("land_area_sqm"),
             )
@@ -619,11 +619,11 @@ def analytics_land_by_district(request):
                 District.name.label("district"),
                 func.count(HealthFacility.id).label("land_record_count"),
                 func.coalesce(
-                    func.sum(HealthFacility.total_land_area_sqm),
+                    func.sum(HealthFacility.parsed_area_sqm),
                     0,
                 ).label("total_land_area_sqm"),
                 func.coalesce(
-                    func.avg(HealthFacility.total_land_area_sqm),
+                    func.avg(HealthFacility.parsed_area_sqm),
                     0,
                 ).label("average_land_area_sqm"),
             )
@@ -672,7 +672,7 @@ def analytics_ownership(request):
                 OwnershipType.label,
                 func.count(HealthFacility.id).label("facility_count"),
                 func.coalesce(
-                    func.sum(HealthFacility.total_land_area_sqm),
+                    func.sum(HealthFacility.parsed_area_sqm),
                     0,
                 ).label("land_area_sqm"),
             )
@@ -989,7 +989,7 @@ def iphs_gaps(request):
                 actual = (
                     session.query(
                         func.coalesce(
-                            func.avg(HealthFacility.total_land_area_sqm),
+                            func.avg(HealthFacility.parsed_area_sqm),
                             0,
                         )
                     )
