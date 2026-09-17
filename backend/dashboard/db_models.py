@@ -1,13 +1,13 @@
 import os
 
 from dotenv import load_dotenv
-from sqlalchemy import create_engine, MetaData
+from sqlalchemy import MetaData, create_engine
 from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import sessionmaker
 
 
-
 load_dotenv()
+
 
 DATABASE_URL = (
     f"postgresql+psycopg://"
@@ -18,34 +18,36 @@ DATABASE_URL = (
     f"{os.getenv('POSTGRES_DB')}"
 )
 
-engine = create_engine(DATABASE_URL)
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,
+)
 
 metadata = MetaData()
 
-# Read the actual PostgreSQL schemas
-metadata.reflect(
-    bind=engine,
-    schema="ref",
-)
+# Reflect the canonical application schemas only.
+metadata.reflect(bind=engine, schema="ref")
+metadata.reflect(bind=engine, schema="public")
 
-metadata.reflect(
-    bind=engine,
-    schema="public",
-)
-
-# Generate ORM classes automatically
 Base = automap_base(metadata=metadata)
 Base.prepare()
 
-# Expose the generated classes
+
+# Reference models
 District = Base.classes.district
 Taluka = Base.classes.taluka
 FacilityType = Base.classes.facility_type
 OwnershipType = Base.classes.ownership_type
 
+# Application models
 HealthFacility = Base.classes.health_facility
 Office = Base.classes.office
 
+# IPHS 2022 reference models.
+# These become available after the IPHS Flyway migration creates the tables.
+IPHSStandard = getattr(Base.classes, "iphs_standard", None)
+IPHSFacility = getattr(Base.classes, "iphs_facility", None)
+IPHSRequirement = getattr(Base.classes, "iphs_requirement", None)
 
 
 SessionLocal = sessionmaker(bind=engine)
