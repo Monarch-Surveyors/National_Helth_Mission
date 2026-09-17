@@ -5,24 +5,30 @@
  * Uses native browser fetch and URLSearchParams.
  * Connects to Django backend endpoints via Vite proxy (/api) or direct host.
  */
+import {
+  ANALYTICS_ENDPOINTS,
+  FACILITY_ENDPOINTS,
+  OFFICE_ENDPOINTS
+} from '../endpoints';
 
-const RAW_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+// Centralized API Base URL sourced exclusively from Vite environment
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-if (!RAW_BASE_URL) {
+if (!API_BASE_URL) {
   throw new Error('VITE_API_BASE_URL is missing in frontend/.env');
 }
 
 /**
  * Helper to safely construct full request URLs without duplicate slashes.
  */
-function buildUrl(endpoint, params = {}) {
-  let cleanBase = RAW_BASE_URL.trim().replace(/\/+$/, '');
+export function buildUrl(endpoint, params = {}) {
+  let cleanBase = API_BASE_URL.trim().replace(/\/+$/, '');
   // If an absolute HTTP(S) URL is provided without /api, append /api for Django routes
   if (cleanBase.startsWith('http') && !cleanBase.endsWith('/api') && !cleanBase.includes('/api/')) {
     cleanBase = `${cleanBase}/api`;
   }
   const cleanEndpoint = endpoint.replace(/^\/+/, '').replace(/\/+$/, '');
-  let url = `${cleanBase}/${cleanEndpoint}/`;
+  const url = `${cleanBase}/${cleanEndpoint}/`;
 
   const searchParams = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
@@ -38,7 +44,7 @@ function buildUrl(endpoint, params = {}) {
 /**
  * Generic fetch wrapper with comprehensive error handling.
  */
-async function fetchJson(url, options = {}) {
+export async function fetchJson(url, options = {}) {
   try {
     const response = await fetch(url, {
       headers: {
@@ -149,7 +155,7 @@ export function normalizeOffice(o = {}) {
 }
 
 // ==========================================
-// BACKEND API SERVICE METHODS
+// REFERENCE & RECORD API SERVICE METHODS
 // ==========================================
 
 /**
@@ -157,7 +163,7 @@ export function normalizeOffice(o = {}) {
  * Retrieves all registered facility classification types.
  */
 export async function getFacilityTypes() {
-  const url = buildUrl('facility-types');
+  const url = buildUrl(FACILITY_ENDPOINTS.FACILITY_TYPES);
   const data = await fetchJson(url);
   return extractResults(data);
 }
@@ -167,7 +173,7 @@ export async function getFacilityTypes() {
  * Retrieves all registered property tenure/ownership categories.
  */
 export async function getOwnershipTypes() {
-  const url = buildUrl('ownership-types');
+  const url = buildUrl(OFFICE_ENDPOINTS.OWNERSHIP_TYPES);
   const data = await fetchJson(url);
   return extractResults(data);
 }
@@ -177,7 +183,7 @@ export async function getOwnershipTypes() {
  * Retrieves all administrative districts in Maharashtra.
  */
 export async function getDistricts() {
-  const url = buildUrl('districts');
+  const url = buildUrl(FACILITY_ENDPOINTS.DISTRICTS);
   const data = await fetchJson(url);
   return extractResults(data);
 }
@@ -191,7 +197,7 @@ export async function getTalukas(districtId = null) {
   if (districtId && districtId !== 'All') {
     params.district_id = districtId;
   }
-  const url = buildUrl('talukas', params);
+  const url = buildUrl(FACILITY_ENDPOINTS.TALUKAS, params);
   const data = await fetchJson(url);
   return extractResults(data);
 }
@@ -207,7 +213,7 @@ export async function getFacilities(filters = {}) {
   if (filters.facility_type_id && filters.facility_type_id !== 'All') params.facility_type_id = filters.facility_type_id;
   if (filters.ownership_type_id && filters.ownership_type_id !== 'All') params.ownership_type_id = filters.ownership_type_id;
 
-  const url = buildUrl('facilities', params);
+  const url = buildUrl(FACILITY_ENDPOINTS.FACILITIES, params);
   const data = await fetchJson(url);
   const rawList = extractResults(data);
   return rawList.map(normalizeFacility);
@@ -223,19 +229,141 @@ export async function getOffices(filters = {}) {
   if (filters.taluka_id && filters.taluka_id !== 'All') params.taluka_id = filters.taluka_id;
   if (filters.ownership_type_id && filters.ownership_type_id !== 'All') params.ownership_type_id = filters.ownership_type_id;
 
-  const url = buildUrl('offices', params);
+  const url = buildUrl(OFFICE_ENDPOINTS.OFFICES, params);
   const data = await fetchJson(url);
   const rawList = extractResults(data);
   return rawList.map(normalizeOffice);
 }
 
+// ==========================================
+// ANALYTICS & IPHS API SERVICE METHODS
+// ==========================================
+
+/**
+ * GET /api/analytics/overview/
+ * Retrieves high-level statewide totals: facilities, offices, districts, talukas, types, land.
+ */
+export async function getAnalyticsOverview() {
+  const url = buildUrl(ANALYTICS_ENDPOINTS.OVERVIEW);
+  return await fetchJson(url);
+}
+
+/**
+ * GET /api/analytics/facilities/by-type/
+ * Retrieves facility counts aggregated across all registered facility classification types.
+ */
+export async function getFacilitiesByType() {
+  const url = buildUrl(ANALYTICS_ENDPOINTS.FACILITIES_BY_TYPE);
+  const data = await fetchJson(url);
+  return extractResults(data);
+}
+
+/**
+ * GET /api/analytics/facilities/by-district/
+ * Retrieves facility counts and land footprints aggregated across all 82 districts.
+ */
+export async function getFacilitiesByDistrict() {
+  const url = buildUrl(ANALYTICS_ENDPOINTS.FACILITIES_BY_DISTRICT);
+  const data = await fetchJson(url);
+  return extractResults(data);
+}
+
+/**
+ * GET /api/analytics/offices/by-district/
+ * Retrieves administrative office counts aggregated across districts.
+ */
+export async function getOfficesByDistrict() {
+  const url = buildUrl(ANALYTICS_ENDPOINTS.OFFICES_BY_DISTRICT);
+  const data = await fetchJson(url);
+  return extractResults(data);
+}
+
+/**
+ * GET /api/analytics/land/by-district/
+ * Retrieves land record counts, total area, and average area per district.
+ */
+export async function getLandByDistrict() {
+  const url = buildUrl(ANALYTICS_ENDPOINTS.LAND_BY_DISTRICT);
+  const data = await fetchJson(url);
+  return extractResults(data);
+}
+
+/**
+ * GET /api/analytics/ownership/
+ * Retrieves facility counts aggregated by property ownership/tenure categories.
+ */
+export async function getOwnershipAnalytics() {
+  const url = buildUrl(ANALYTICS_ENDPOINTS.OWNERSHIP);
+  const data = await fetchJson(url);
+  return extractResults(data);
+}
+
+/**
+ * GET /api/analytics/documents/
+ * Retrieves documentation completeness counts for critical property and identification fields.
+ */
+export async function getDocumentsAnalytics() {
+  const url = buildUrl(ANALYTICS_ENDPOINTS.DOCUMENTS);
+  return await fetchJson(url);
+}
+
+/**
+ * GET /api/analytics/data-quality/
+ * Retrieves overall record quality & field-level completeness breakdown.
+ */
+export async function getDataQualityAnalytics() {
+  const url = buildUrl(ANALYTICS_ENDPOINTS.DATA_QUALITY);
+  return await fetchJson(url);
+}
+
+/**
+ * GET /api/analytics/iphs/summary/
+ * Retrieves statutory IPHS 2022 standards metadata, facility categories, and requirements count.
+ */
+export async function getIphsSummary() {
+  const url = buildUrl(ANALYTICS_ENDPOINTS.IPHS_SUMMARY);
+  return await fetchJson(url);
+}
+
+/**
+ * GET /api/analytics/iphs/norms/
+ * Retrieves IPHS requirement norms with optional filtering.
+ */
+export async function getIphsNorms(params = {}) {
+  const url = buildUrl(ANALYTICS_ENDPOINTS.IPHS_NORMS, params);
+  return await fetchJson(url);
+}
+
+/**
+ * GET /api/analytics/iphs/gaps/
+ * Retrieves evaluated IPHS gaps comparing actual facility counts & land footprints against norms.
+ */
+export async function getIphsGaps() {
+  const url = buildUrl(ANALYTICS_ENDPOINTS.IPHS_GAPS);
+  return await fetchJson(url);
+}
+
 export const nhmApi = {
+  API_BASE_URL,
+  buildUrl,
+  fetchJson,
   getFacilityTypes,
   getOwnershipTypes,
   getDistricts,
   getTalukas,
   getFacilities,
   getOffices,
+  getAnalyticsOverview,
+  getFacilitiesByType,
+  getFacilitiesByDistrict,
+  getOfficesByDistrict,
+  getLandByDistrict,
+  getOwnershipAnalytics,
+  getDocumentsAnalytics,
+  getDataQualityAnalytics,
+  getIphsSummary,
+  getIphsNorms,
+  getIphsGaps,
   extractResults,
   normalizeFacility,
   normalizeOffice

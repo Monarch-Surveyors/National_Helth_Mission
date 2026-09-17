@@ -220,11 +220,6 @@ function Facilities() {
                 : 'Public health infrastructure registry across Maharashtra'}
             </p>
           </div>
-          {!error && !loading && (
-            <span className="badge badge-success" style={{ padding: '6px 14px', fontSize: '12px' }}>
-              ● Live API Data
-            </span>
-          )}
         </div>
       </div>
 

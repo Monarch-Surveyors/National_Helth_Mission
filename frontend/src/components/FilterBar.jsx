@@ -12,11 +12,10 @@ function FilterBar({ children, title = 'Filter & Search' }) {
   return (
     <div className="filter-card">
       {title && (
-        <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ marginBottom: '12px' }}>
           <span style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: '#475569' }}>
             {title}
           </span>
-          <span className="badge badge-neutral" style={{ fontSize: '10px' }}>Frontend Static Filters</span>
         </div>
       )}
       <div className="filter-grid">
@@ -27,4 +26,3 @@ function FilterBar({ children, title = 'Filter & Search' }) {
 }
 
 export default FilterBar;
-
