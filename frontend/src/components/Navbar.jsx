@@ -3,36 +3,42 @@ import React from 'react';
 /**
  * Navbar Component
  *
- * Top application header containing government identity, status indicators,
- * and responsive mobile drawer toggle button.
+ * Top application header containing:
+ * - Application title & subtitle:
+ *     "Welcome to NHM Maharashtra"
+ *     "Explore and monitor health infrastructure across the state"
+ * - User profile badge (MH Admin dropdown trigger)
  */
-function Navbar({ onToggleSidebar }) {
+function Navbar() {
   return (
     <header className="navbar">
       <div className="navbar-left">
-        <button
-          type="button"
-          className="mobile-toggle-btn"
-          onClick={onToggleSidebar}
-          aria-label="Toggle navigation"
-        >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <line x1="3" y1="12" x2="21" y2="12"></line>
-            <line x1="3" y1="6" x2="21" y2="6"></line>
-            <line x1="3" y1="18" x2="21" y2="18"></line>
-          </svg>
-        </button>
-        <div className="navbar-title">
-          <span>Public Health Department</span>
-          <span className="state-badge">Maharashtra</span>
+        <div className="navbar-heading">
+          <h1 className="navbar-title">Welcome to NHM Maharashtra</h1>
+          <p className="navbar-subtitle">
+            Explore and monitor health infrastructure across the state
+          </p>
         </div>
       </div>
 
       <div className="navbar-right">
-        {/* User profile badge */}
-        <div className="user-profile-badge">
-          <div className="avatar-circle">MH</div>
-          <span style={{ fontWeight: 500 }}>Health Dept Admin</span>
+        {/* User profile dropdown trigger */}
+        <div className="navbar-profile" title="Admin Profile">
+          <div className="navbar-avatar">MH</div>
+          <span className="navbar-user-name">Admin</span>
+          <svg
+            className="navbar-chevron"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
         </div>
       </div>
     </header>
@@ -40,3 +46,5 @@ function Navbar({ onToggleSidebar }) {
 }
 
 export default Navbar;
+
+

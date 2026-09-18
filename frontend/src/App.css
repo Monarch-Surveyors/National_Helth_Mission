@@ -133,10 +133,10 @@
 
 /* Navbar */
 .navbar {
-  height: var(--navbar-height);
+  min-height: 64px;
   background: var(--bg-surface);
   border-bottom: 1px solid var(--border-color);
-  padding: 0 28px;
+  padding: 12px 28px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -149,36 +149,26 @@
 .navbar-left {
   display: flex;
   align-items: center;
-  gap: 16px;
 }
 
-.mobile-toggle-btn {
-  display: none;
-  background: transparent;
-  border: none;
-  font-size: 20px;
-  cursor: pointer;
-  color: var(--text-main);
-  padding: 6px;
+.navbar-heading {
+  display: flex;
+  flex-direction: column;
 }
 
 .navbar-title {
-  font-size: 16px;
+  font-size: 20px;
   font-weight: 700;
   color: var(--nhm-primary-dark);
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  line-height: 1.25;
+  margin: 0;
 }
 
-.state-badge {
-  background: #eff6ff;
-  color: var(--nhm-primary);
-  font-size: 11px;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 999px;
-  border: 1px solid #bfdbfe;
+.navbar-subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 400;
+  margin: 3px 0 0 0;
 }
 
 .navbar-right {
@@ -187,41 +177,45 @@
   gap: 16px;
 }
 
-.prototype-tag {
+/* User Profile Badge (MH Admin Dropdown Trigger) */
+.navbar-profile {
   display: flex;
   align-items: center;
-  gap: 6px;
-  background: #fef3c7;
-  color: #92400e;
-  border: 1px solid #fde68a;
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
+  gap: 8px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 8px;
+  transition: background-color 0.15s ease;
+  user-select: none;
 }
 
-.user-profile-badge {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 4px 10px;
-  border-radius: 20px;
+.navbar-profile:hover {
   background: var(--bg-subtle);
-  border: 1px solid var(--border-color);
-  font-size: 13px;
 }
 
-.avatar-circle {
-  width: 28px;
-  height: 28px;
+.navbar-avatar {
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  background: var(--nhm-primary);
-  color: white;
+  background-color: #1d4ed8;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 13px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  letter-spacing: 0.5px;
+}
+
+.navbar-user-name {
+  font-size: 14px;
   font-weight: 600;
+  color: #1e293b;
+}
+
+.navbar-chevron {
+  color: #64748b;
+  margin-top: 1px;
 }
 
 /* Page Content Container */
@@ -412,6 +406,7 @@
   box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .chart-card-header {
@@ -438,6 +433,40 @@
 .chart-card-body {
   padding: 20px;
   flex: 1;
+  min-width: 0;
+}
+
+/* Scrollable Chart Containers */
+.chart-scroll-wrapper {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 8px;
+}
+
+.chart-scroll-wrapper::-webkit-scrollbar {
+  height: 8px;
+}
+
+.chart-scroll-wrapper::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.chart-scroll-wrapper::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.chart-scroll-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.chart-scroll-wrapper {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
 }
 
 /* Tables */

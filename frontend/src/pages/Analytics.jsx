@@ -8,7 +8,14 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
-  Cell
+  Cell,
+  AreaChart,
+  Area,
+  RadarChart,
+  Radar,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis
 } from 'recharts';
 import KPICard from '../components/KPICard';
 import ChartCard from '../components/ChartCard';
@@ -88,6 +95,16 @@ function Analytics() {
   const [selectedOwnership, setSelectedOwnership] = useState('All');
   const [selectedSort, setSelectedSort] = useState('count_desc');
   const [selectedLimit, setSelectedLimit] = useState(15);
+
+  const handleResetFilters = () => {
+    setSelectedDistrict('All');
+    setSelectedFacilityType('All');
+    setSelectedOwnership('All');
+    setSelectedSort('count_desc');
+    setSelectedLimit(15);
+    setDistrictSearch('');
+    setLandSearch('');
+  };
 
   // Quick search controls
   const [districtSearch, setDistrictSearch] = useState('');
@@ -435,45 +452,118 @@ function Analytics() {
   // Memoized Documents Completeness Data for Recharts Bar
   const documentMetrics = useMemo(() => {
     if (!documentsData) return [];
-    return [
-      {
-        field: 'Survey / Gat No.',
-        available: documentsData.survey_gat_cts_no?.available || 0,
-        missing: documentsData.survey_gat_cts_no?.missing || 0,
-        rate: calculatePercent(documentsData.survey_gat_cts_no?.available, documentsData.total_facilities)
-      },
-      {
-        field: 'Property Address',
-        available: documentsData.property_land_address?.available || 0,
-        missing: documentsData.property_land_address?.missing || 0,
-        rate: calculatePercent(documentsData.property_land_address?.available, documentsData.total_facilities)
-      },
-      {
-        field: 'PIN Code',
-        available: documentsData.pin_code?.available || 0,
-        missing: documentsData.pin_code?.missing || 0,
-        rate: calculatePercent(documentsData.pin_code?.available, documentsData.total_facilities)
-      },
-      {
-        field: 'Ownership Document',
-        available: documentsData.ownership_doc_available?.available || 0,
-        missing: documentsData.ownership_doc_available?.missing || 0,
-        rate: calculatePercent(documentsData.ownership_doc_available?.available, documentsData.total_facilities)
-      }
+
+    const getMetric = (label, dataObj) => {
+      const available = Number(dataObj?.available) || 0;
+      const missing = Number(dataObj?.missing) || 0;
+      const total = available + missing;
+      const rate = total > 0 ? Math.round((available / total) * 100) : 0;
+      return {
+        field: label,
+        available,
+        missing,
+        total,
+        rate
+      };
+    };
+
+    const knownKeys = new Set([
+      'survey_gat_cts_no',
+      'property_land_address',
+      'pin_code',
+      'ownership_doc_available',
+      'ownership_document',
+      'total_facilities'
+    ]);
+
+    const metrics = [
+      getMetric('Survey / Gat No.', documentsData.survey_gat_cts_no),
+      getMetric('Property Land Address', documentsData.property_land_address),
+      getMetric('PIN Code', documentsData.pin_code),
+      getMetric(
+        'Ownership Document',
+        documentsData.ownership_document || documentsData.ownership_doc_available
+      )
     ];
+
+    // Check for any other existing data-quality fields in documentsData
+    Object.entries(documentsData).forEach(([key, val]) => {
+      if (!knownKeys.has(key) && val && typeof val === 'object' && ('available' in val || 'missing' in val)) {
+        const formattedLabel = key
+          .replace(/_/g, ' ')
+          .replace(/\b\w/g, (c) => c.toUpperCase());
+        metrics.push(getMetric(formattedLabel, val));
+      }
+    });
+
+    return metrics;
   }, [documentsData]);
 
-  // Memoized Data Quality Fields for Table & Progress View
+  // Memoized Data Quality Fields for Radar Chart
   const qualityFields = useMemo(() => {
     if (!dataQualityData?.fields) return [];
-    return Object.entries(dataQualityData.fields).map(([fieldName, stats]) => ({
-      key: fieldName,
-      label: fieldName.replace(/_/g, ' ').toUpperCase(),
-      available: stats.available || 0,
-      missing: stats.missing || 0,
-      total: (stats.available || 0) + (stats.missing || 0),
-      rate: calculatePercent(stats.available, (stats.available || 0) + (stats.missing || 0))
-    })).sort((a, b) => b.rate - a.rate);
+
+    const fieldConfig = [
+      { key: 'facility_name', label: 'Facility Name' },
+      { key: 'property_land_address', label: 'Property Land Address' },
+      { key: 'pin_code', label: 'PIN Code' },
+      { key: 'survey_gat_cts_no', label: 'Survey Gat CTS No' },
+      { key: 'total_land_area_sqm', label: 'Total Land Area SQM' },
+      {
+        key: 'ownership_doc_available',
+        fallbackKey: 'ownership_document',
+        label: 'Ownership Document'
+      },
+      { key: 'district', label: 'District' },
+      { key: 'taluka', label: 'Taluka' },
+      { key: 'facility_type', label: 'Facility Type' }
+    ];
+
+    const processedKeys = new Set();
+    const result = [];
+
+    fieldConfig.forEach(({ key, fallbackKey, label }) => {
+      const stats = dataQualityData.fields[key] || (fallbackKey ? dataQualityData.fields[fallbackKey] : null);
+      if (stats) {
+        processedKeys.add(key);
+        if (fallbackKey) processedKeys.add(fallbackKey);
+        const available = Number(stats.available) || 0;
+        const missing = Number(stats.missing) || 0;
+        const total = available + missing;
+        const rate = total > 0 ? Math.round((available / total) * 100) : 0;
+        result.push({
+          key,
+          label,
+          available,
+          missing,
+          total,
+          rate
+        });
+      }
+    });
+
+    // Support any additional schema/data-quality fields from the API
+    Object.entries(dataQualityData.fields).forEach(([fieldName, stats]) => {
+      if (!processedKeys.has(fieldName) && stats && typeof stats === 'object') {
+        const available = Number(stats.available) || 0;
+        const missing = Number(stats.missing) || 0;
+        const total = available + missing;
+        const rate = total > 0 ? Math.round((available / total) * 100) : 0;
+        const formattedLabel = fieldName
+          .replace(/_/g, ' ')
+          .replace(/\b\w/g, (c) => c.toUpperCase());
+        result.push({
+          key: fieldName,
+          label: formattedLabel,
+          available,
+          missing,
+          total,
+          rate
+        });
+      }
+    });
+
+    return result;
   }, [dataQualityData]);
 
   // Filtered IPHS Gaps rows based on Facility Type selection
@@ -564,15 +654,7 @@ function Analytics() {
             type="button"
             className="pagination-btn"
             style={{ height: '38px', fontWeight: 600, background: '#f1f5f9' }}
-            onClick={() => {
-              setSelectedDistrict('All');
-              setSelectedFacilityType('All');
-              setSelectedOwnership('All');
-              setSelectedSort('count_desc');
-              setSelectedLimit(15);
-              setDistrictSearch('');
-              setLandSearch('');
-            }}
+            onClick={handleResetFilters}
           >
             Reset Filters
           </button>
@@ -593,36 +675,87 @@ function Analytics() {
             value={loading ? '--' : formatNumber(computedMetrics?.facilities)}
             subtitle={computedMetrics?.scopeSubtitle || 'Health Facilities Registered'}
             variant="primary"
+            icon={
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M3 21h18" />
+                <path d="M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16" />
+                <path d="M9 21v-4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v4" />
+                <path d="M10 9h4" />
+                <path d="M12 7v4" />
+              </svg>
+            }
           />
           <KPICard
             title="Total Offices"
             value={loading ? '--' : formatNumber(computedMetrics?.offices)}
             subtitle="Administrative & Health Offices"
             variant="neutral"
+            icon={
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="4" y="2" width="16" height="20" rx="2" />
+                <path d="M9 22v-4h6v4" />
+                <path d="M8 6h.01" />
+                <path d="M16 6h.01" />
+                <path d="M12 6h.01" />
+                <path d="M12 10h.01" />
+                <path d="M12 14h.01" />
+                <path d="M16 10h.01" />
+                <path d="M16 14h.01" />
+                <path d="M8 10h.01" />
+                <path d="M8 14h.01" />
+              </svg>
+            }
           />
           <KPICard
             title="Total Districts"
             value={loading ? '--' : formatNumber(computedMetrics?.districts)}
             subtitle={selectedDistrict !== 'All' ? 'Selected District' : 'Districts in Register'}
             variant="accent"
+            icon={
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                <circle cx="12" cy="10" r="3" />
+              </svg>
+            }
           />
           <KPICard
             title="Total Talukas"
             value={loading ? '--' : formatNumber(computedMetrics?.talukas)}
             subtitle="Tehsils & Health Blocks"
             variant="success"
+            icon={
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="3" y="3" width="7" height="7" />
+                <rect x="14" y="3" width="7" height="7" />
+                <rect x="14" y="14" width="7" height="7" />
+                <rect x="3" y="14" width="7" height="7" />
+              </svg>
+            }
           />
           <KPICard
             title="Facility Types"
             value={loading ? '--' : formatNumber(computedMetrics?.facilityTypes)}
             subtitle="Standardized Classifications"
             variant="info"
+            icon={
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+                <line x1="7" y1="7" x2="7.01" y2="7" />
+              </svg>
+            }
           />
           <KPICard
             title="Total Land Area"
             value={loading ? '--' : formatArea(computedMetrics?.totalLand)}
             subtitle="Recorded Land Area"
             variant="warning"
+            icon={
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
+                <line x1="8" y1="2" x2="8" y2="18" />
+                <line x1="16" y1="6" x2="16" y2="22" />
+              </svg>
+            }
           />
         </div>
       )}
@@ -632,7 +765,7 @@ function Analytics() {
         {/* Chart 1: Facilities by Type */}
         <ChartCard
           title="1. Facilities by Type"
-          subtitle="Count across all registered public health tiers (/api/analytics/facilities/by-type/)"
+          subtitle="Distribution of registered health facilities by facility type"
           badge={`${filteredTypes.length} Types`}
         >
           {errors.type ? (
@@ -680,10 +813,10 @@ function Analytics() {
           )}
         </ChartCard>
 
-        {/* Chart 4: Ownership Distribution */}
+        {/* Chart 2: Ownership Distribution */}
         <ChartCard
           title="2. Ownership Distribution"
-          subtitle="Breakdown by property tenure category (/api/analytics/ownership/)"
+          subtitle="Breakdown of facilities by ownership category"
           badge={`${filteredOwnership.length} Categories`}
         >
           {errors.ownership ? (
@@ -700,7 +833,7 @@ function Analytics() {
           ) : (
             <div style={{ maxHeight: '320px', overflowY: 'auto', paddingRight: '4px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {filteredOwnership.slice(0, 10).map((item, idx) => {
+                {filteredOwnership.map((item, idx) => {
                   const percent = calculatePercent(item.facility_count, overview?.facilities);
                   return (
                     <div
@@ -739,9 +872,6 @@ function Analytics() {
                   );
                 })}
               </div>
-              <div style={{ fontSize: '11px', color: '#64748b', marginTop: '10px' }}>
-                * Showing top {Math.min(filteredOwnership.length, 10)} categories of {filteredOwnership.length} total recorded tenure types.
-              </div>
             </div>
           )}
         </ChartCard>
@@ -751,7 +881,7 @@ function Analytics() {
       <div style={{ marginBottom: '24px' }}>
         <ChartCard
           title="3. Facilities by District"
-          subtitle="Statewide health infrastructure distribution across all districts (/api/analytics/facilities/by-district/)"
+          subtitle="Statewide health infrastructure distribution across all districts"
           badge={`${processedDistricts.length} Districts Matching`}
           action={
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -784,28 +914,30 @@ function Analytics() {
             <EmptyState message="No matching districts found for selected filters." height={200} />
           ) : (
             <div>
-              <div style={{ width: '100%', height: 380, overflowX: 'auto' }}>
-                <ResponsiveContainer width="100%" height="100%" minWidth={displayedDistricts.length * 30}>
-                  <BarChart
-                    data={displayedDistricts}
-                    margin={{ top: 15, right: 20, left: 10, bottom: 65 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                    <XAxis
-                      dataKey="district"
-                      tick={{ fill: '#334155', fontSize: 11, fontWeight: 500 }}
-                      interval={0}
-                      angle={-45}
-                      textAnchor="end"
-                    />
-                    <YAxis tick={{ fill: '#64748b', fontSize: 11 }} />
-                    <Tooltip
-                      formatter={(val) => [`${Number(val).toLocaleString()} Facilities`, 'Total Health Facilities']}
-                      contentStyle={{ backgroundColor: '#ffffff', borderRadius: 6, borderColor: '#cbd5e1' }}
-                    />
-                    <Bar dataKey="facility_count" fill="#2563eb" radius={[3, 3, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+              <div className="chart-scroll-wrapper">
+                <div style={{ minWidth: `${Math.max(1200, displayedDistricts.length * 34)}px`, width: '100%', height: 380 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={displayedDistricts}
+                      margin={{ top: 15, right: 20, left: 10, bottom: 65 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <XAxis
+                        dataKey="district"
+                        tick={{ fill: '#334155', fontSize: 11, fontWeight: 500 }}
+                        interval={0}
+                        angle={-45}
+                        textAnchor="end"
+                      />
+                      <YAxis tick={{ fill: '#64748b', fontSize: 11 }} />
+                      <Tooltip
+                        formatter={(val) => [`${Number(val).toLocaleString()} Facilities`, 'Total Health Facilities']}
+                        contentStyle={{ backgroundColor: '#ffffff', borderRadius: 6, borderColor: '#cbd5e1' }}
+                      />
+                      <Bar dataKey="facility_count" fill="#2563eb" radius={[3, 3, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
               <div style={{ fontSize: '11px', color: '#64748b', marginTop: '6px', display: 'flex', justifyContent: 'space-between' }}>
                 <span>Showing {displayedDistricts.length} of {processedDistricts.length} matching districts.</span>
@@ -821,7 +953,7 @@ function Analytics() {
         {/* Chart 3: Offices by District */}
         <ChartCard
           title="4. Administrative Offices by District"
-          subtitle="Administrative and Health Office presence across Maharashtra (/api/analytics/offices/by-district/)"
+          subtitle="Administrative and health office presence across Maharashtra districts"
           badge={`${processedOffices.length} Districts Matching`}
         >
           {errors.distOff ? (
@@ -837,31 +969,47 @@ function Analytics() {
             <EmptyState message="No office data available for selected filter." height={320} />
           ) : (
             <div>
-              <div style={{ width: '100%', height: 320, overflowX: 'auto' }}>
-                <ResponsiveContainer width="100%" height="100%" minWidth={displayedOffices.length * 32}>
-                  <BarChart
-                    data={displayedOffices}
-                    margin={{ top: 15, right: 15, left: 10, bottom: 55 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                    <XAxis
-                      dataKey="district"
-                      tick={{ fill: '#334155', fontSize: 11 }}
-                      interval={0}
-                      angle={-45}
-                      textAnchor="end"
-                    />
-                    <YAxis tick={{ fill: '#64748b', fontSize: 11 }} />
-                    <Tooltip
-                      formatter={(val) => [`${Number(val).toLocaleString()} Offices`, 'Administrative Units']}
-                      contentStyle={{ backgroundColor: '#ffffff', borderRadius: 6, borderColor: '#cbd5e1' }}
-                    />
-                    <Bar dataKey="office_count" fill="#0d9488" radius={[3, 3, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+              <div className="chart-scroll-wrapper">
+                <div style={{ minWidth: `${Math.max(1200, displayedOffices.length * 34)}px`, width: '100%', height: 320 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart
+                      data={displayedOffices}
+                      margin={{ top: 15, right: 15, left: 10, bottom: 55 }}
+                    >
+                      <defs>
+                        <linearGradient id="officeAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#0d9488" stopOpacity={0.4} />
+                          <stop offset="95%" stopColor="#0d9488" stopOpacity={0.02} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <XAxis
+                        dataKey="district"
+                        tick={{ fill: '#334155', fontSize: 11 }}
+                        interval={0}
+                        angle={-45}
+                        textAnchor="end"
+                      />
+                      <YAxis tick={{ fill: '#64748b', fontSize: 11 }} />
+                      <Tooltip
+                        formatter={(val) => [`${Number(val).toLocaleString()} Offices`, 'Administrative Units']}
+                        contentStyle={{ backgroundColor: '#ffffff', borderRadius: 8, borderColor: '#cbd5e1' }}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="office_count"
+                        stroke="#0d9488"
+                        strokeWidth={2.5}
+                        fillOpacity={1}
+                        fill="url(#officeAreaGrad)"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
-              <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
-                * Displaying {displayedOffices.length} districts ordered by active sort selection.
+              <div style={{ fontSize: '11px', color: '#64748b', marginTop: '6px', display: 'flex', justifyContent: 'space-between' }}>
+                <span>Showing {displayedOffices.length} of {processedOffices.length} matching districts.</span>
+                <span>Scroll horizontally to inspect full dataset.</span>
               </div>
             </div>
           )}
@@ -870,7 +1018,7 @@ function Analytics() {
         {/* Chart 5: Land Area by District */}
         <ChartCard
           title="5. Land Footprint by District"
-          subtitle="Total recorded land area and parcels per district (/api/analytics/land/by-district/)"
+          subtitle="Total recorded land area and parcels per district"
           badge={`${processedLandDistricts.length} Districts Matching`}
           action={
             <input
@@ -934,7 +1082,7 @@ function Analytics() {
         {/* Chart 6: Documents Completeness */}
         <ChartCard
           title="6. Document Completeness Audit"
-          subtitle="Legal property records & identification availability (/api/analytics/documents/)"
+          subtitle="Availability of important legal and property records"
           badge={`Total ${formatNumber(documentsData?.total_facilities)} Facilities`}
         >
           {errors.documents ? (
@@ -960,10 +1108,13 @@ function Analytics() {
                     <XAxis dataKey="field" tick={{ fill: '#334155', fontSize: 11 }} />
                     <YAxis tick={{ fill: '#64748b', fontSize: 11 }} />
                     <Tooltip
-                      formatter={(val, name) => [
-                        `${Number(val).toLocaleString()} Facilities`,
-                        name === 'available' ? 'Available' : 'Missing'
-                      ]}
+                      formatter={(val, name) => {
+                        const isAvailable = String(name).toLowerCase() === 'available';
+                        return [
+                          `${Number(val).toLocaleString()} Facilities`,
+                          isAvailable ? 'Available' : 'Missing'
+                        ];
+                      }}
                       contentStyle={{ backgroundColor: '#ffffff', borderRadius: 6, borderColor: '#cbd5e1' }}
                     />
                     <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
@@ -989,8 +1140,8 @@ function Analytics() {
         {/* Chart 7: Data Quality Field Completeness */}
         <ChartCard
           title="7. Data Quality Completeness Index"
-          subtitle="Completeness rate across 9 core schema attributes (/api/analytics/data-quality/)"
-          badge="9 Fields Analyzed"
+          subtitle="Completeness of important facility information"
+          badge={`${qualityFields.length || 9} Fields Analyzed`}
         >
           {errors.dataQuality ? (
             <ErrorState
@@ -1001,40 +1152,55 @@ function Analytics() {
             />
           ) : loading ? (
             <LoadingState message="Loading data quality analysis..." height={320} />
-          ) : qualityFields.length === 0 ? (
+          ) : (!dataQualityData || !dataQualityData.fields || qualityFields.length === 0) ? (
             <EmptyState message="No data quality metrics available." height={320} />
           ) : (
-            <div style={{ maxHeight: '320px', overflowY: 'auto', paddingRight: '4px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {qualityFields.map((field) => (
-                  <div
-                    key={field.key}
-                    style={{
-                      padding: '8px 12px',
-                      background: '#f8fafc',
-                      borderRadius: '6px',
-                      border: '1px solid #e2e8f0'
+            <div style={{ width: '100%', height: 320, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <RadarChart cx="50%" cy="50%" outerRadius={95} data={qualityFields}>
+                  <PolarGrid stroke="#e2e8f0" />
+                  <PolarAngleAxis
+                    dataKey="label"
+                    tick={{ fill: '#475569', fontSize: 10, fontWeight: 600 }}
+                  />
+                  <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 9, fill: '#94a3b8' }} />
+                  <Radar
+                    name="Completeness Rate"
+                    dataKey="rate"
+                    stroke="#2563eb"
+                    fill="#3b82f6"
+                    fillOpacity={0.4}
+                  />
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        return (
+                          <div
+                            style={{
+                              backgroundColor: '#ffffff',
+                              padding: '8px 12px',
+                              borderRadius: '8px',
+                              border: '1px solid #cbd5e1',
+                              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                              fontSize: '12px'
+                            }}
+                          >
+                            <span style={{ fontWeight: 600, color: '#1e293b' }}>{data.label}</span>
+                            <span style={{ color: '#64748b' }}>: </span>
+                            <span style={{ fontWeight: 700, color: '#2563eb' }}>{data.rate}%</span>
+                            <span style={{ color: '#64748b' }}>
+                              {' '}
+                              ({formatNumber(data.available)} / {formatNumber(data.total)})
+                            </span>
+                          </div>
+                        );
+                      }
+                      return null;
                     }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
-                      <span style={{ fontWeight: 600, color: '#1e293b' }}>{field.label}</span>
-                      <span style={{ fontWeight: 700, color: field.rate >= 80 ? '#15803d' : field.rate >= 50 ? '#b45309' : '#b91c1c' }}>
-                        {field.rate}% ({formatNumber(field.available)} / {formatNumber(field.total)})
-                      </span>
-                    </div>
-                    <div style={{ height: '6px', background: '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
-                      <div
-                        style={{
-                          height: '100%',
-                          width: `${field.rate}%`,
-                          background: field.rate >= 80 ? '#10b981' : field.rate >= 50 ? '#f59e0b' : '#ef4444',
-                          borderRadius: '3px'
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  />
+                </RadarChart>
+              </ResponsiveContainer>
             </div>
           )}
         </ChartCard>
@@ -1044,7 +1210,7 @@ function Analytics() {
       <div style={{ marginBottom: '24px' }}>
         <ChartCard
           title="8. Indian Public Health Standards (IPHS) 2022 Norms & Gap Assessment"
-          subtitle="Evaluation of facility count & land norms against statutory 2022 guidelines (/api/analytics/iphs/gaps/)"
+          subtitle="Assessment of health infrastructure standards and gaps"
           badge={`${filteredIphsRows.length} Requirements Evaluated`}
         >
           {errors.iphsSummary || errors.iphsGaps ? (
