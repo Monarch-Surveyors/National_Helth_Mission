@@ -4,6 +4,9 @@ from . import views
 
 
 urlpatterns = [
+    # Auth test
+    path("auth-test/", views.auth_test),
+
     # Reference / filter APIs
     path("facility-types/", views.facility_types),
     path("ownership-types/", views.ownership_types),

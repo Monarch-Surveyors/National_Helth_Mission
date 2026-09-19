@@ -54,6 +54,9 @@ if not SECRET_KEY:
 DEBUG = get_env_bool("DEBUG", False)
 
 ALLOWED_HOSTS = get_env_list("ALLOWED_HOSTS")
+if "testserver" not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append("testserver")
+
 
 
 # --------------------------------------------------
@@ -67,6 +70,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "rest_framework",
     "dashboard",
 ]
 
@@ -189,3 +193,34 @@ EMAIL_BACKEND = os.getenv(
     "EMAIL_BACKEND",
     "django.core.mail.backends.console.EmailBackend",
 )
+
+
+# --------------------------------------------------
+# Django REST Framework & Keycloak Authentication
+# --------------------------------------------------
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "dashboard.authentication.KeycloakAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
+    ],
+    "UNAUTHENTICATED_USER": None,
+}
+
+KEYCLOAK_SERVER_URL = os.getenv(
+    "KEYCLOAK_SERVER_URL",
+    "https://martinauthtest.rottengrapes.tech",
+)
+KEYCLOAK_REALM = os.getenv("KEYCLOAK_REALM", "martin")
+KEYCLOAK_ISSUER = os.getenv(
+    "KEYCLOAK_ISSUER",
+    "https://martinauthtest.rottengrapes.tech/realms/martin",
+)
+KEYCLOAK_JWKS_URL = os.getenv(
+    "KEYCLOAK_JWKS_URL",
+    "https://martinauthtest.rottengrapes.tech/realms/martin/protocol/openid-connect/certs",
+)
+KEYCLOAK_CLIENT_ID = os.getenv("KEYCLOAK_CLIENT_ID", "NHM")
+KEYCLOAK_AUDIENCE = os.getenv("KEYCLOAK_AUDIENCE", "NHM,account")

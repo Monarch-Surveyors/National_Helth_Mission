@@ -6,4 +6,20 @@ const keycloak = new Keycloak({
   clientId: import.meta.env.VITE_KEYCLOAK_CLIENT_ID,
 });
 
-export default keycloak;                                                                                                                                                                                                                                                                                                                   
+let initPromise = null;
+
+/**
+ * Initializes Keycloak with check-sso and PKCE S256.
+ * Guaranteed to run only once even in React StrictMode.
+ */
+export function initKeycloak() {
+  if (!initPromise) {
+    initPromise = keycloak.init({
+      onLoad: "check-sso",
+      pkceMethod: "S256",
+    });
+  }
+  return initPromise;
+}
+
+export default keycloak;

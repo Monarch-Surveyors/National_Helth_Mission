@@ -1,5 +1,9 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './auth/AuthContext';
+import RootAuthEntry from './auth/RootAuthEntry';
+import ProtectedRoute from './auth/ProtectedRoute';
+import Logout from './pages/Logout';
 import DashboardLayout from './layouts/DashboardLayout';
 import Dashboard from './pages/Dashboard';
 import Analytics from './pages/Analytics';
@@ -9,39 +13,50 @@ import './App.css';
 /**
  * App Component
  *
- * Configures client-side routing for the live API-supported views:
- * - Master layout wrapping all views (`<DashboardLayout />`)
- * - Default root `/` redirects to `/dashboard`
- * - Dedicated routes for live API data:
- *   - `/dashboard` (Executive Summary Dashboard)
- *   - `/analytics` (Comprehensive Infrastructure Analytics & Quality Hub)
- *   - `/facilities` (Health Facilities Register)
- *   - `/offices` (Administrative Offices Register)
+ * Configures client-side routing with Keycloak authentication:
+ * - Single authentication entry point at `/` (`<RootAuthEntry />`)
+ * - Dedicated explicit logout handler at `/logout` (`<Logout />`)
+ * - Protected application routes wrapped in `<ProtectedRoute>`:
+ *   - `/dashboard`
+ *   - `/analytics`
+ *   - `/facilities`
+ *   - `/offices`
  */
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<DashboardLayout />}>
-          {/* Default root redirects to /dashboard */}
-          <Route index element={<Navigate to="/dashboard" replace />} />
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* Root authentication entry point */}
+          <Route path="/" element={<RootAuthEntry />} />
 
-          {/* Live API Supported Routes */}
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="analytics" element={<Analytics />} />
-          <Route path="facilities" element={<Facilities />} />
-          <Route path="offices" element={<Facilities />} />
+          {/* Dedicated logout route */}
+          <Route path="/logout" element={<Logout />} />
 
-          {/* Sub-analytics redirects to /analytics */}
-          <Route path="land" element={<Navigate to="/analytics" replace />} />
-          <Route path="data-quality" element={<Navigate to="/analytics" replace />} />
-          <Route path="risk-compliance" element={<Navigate to="/analytics" replace />} />
+          {/* Protected Application Routes */}
+          <Route
+            element={
+              <ProtectedRoute>
+                <DashboardLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/analytics" element={<Analytics />} />
+            <Route path="/facilities" element={<Facilities />} />
+            <Route path="/offices" element={<Facilities />} />
+
+            {/* Sub-analytics redirects to /analytics */}
+            <Route path="/land" element={<Navigate to="/analytics" replace />} />
+            <Route path="/data-quality" element={<Navigate to="/analytics" replace />} />
+            <Route path="/risk-compliance" element={<Navigate to="/analytics" replace />} />
+          </Route>
 
           {/* Catch-all fallback route */}
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 

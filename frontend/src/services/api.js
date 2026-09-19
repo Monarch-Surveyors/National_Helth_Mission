@@ -10,6 +10,7 @@ import {
   FACILITY_ENDPOINTS,
   OFFICE_ENDPOINTS
 } from '../endpoints';
+import keycloak from '../auth/keycloak';
 
 // Centralized API Base URL sourced exclusively from Vite environment
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -46,13 +47,41 @@ export function buildUrl(endpoint, params = {}) {
  */
 export async function fetchJson(url, options = {}) {
   try {
+    const authHeaders = {};
+
+    if (keycloak) {
+      if (keycloak.authenticated) {
+        try {
+          await keycloak.updateToken(30);
+        } catch (error) {
+          console.error('Failed to update Keycloak token:', error);
+          keycloak.clearToken();
+          window.location.href = '/';
+          throw new Error('Session expired. Redirecting to login.');
+        }
+      }
+
+      if (keycloak.token) {
+        authHeaders['Authorization'] = `Bearer ${keycloak.token}`;
+      }
+    }
+
     const response = await fetch(url, {
       headers: {
         Accept: 'application/json',
+        ...authHeaders,
         ...options.headers
       },
       ...options
     });
+
+    if (response.status === 401) {
+      if (keycloak) {
+        keycloak.clearToken();
+      }
+      window.location.href = '/';
+      throw new Error('Unauthorized (401). Redirecting to login.');
+    }
 
     if (!response.ok) {
       let errorMessage = `HTTP Error ${response.status}: ${response.statusText}`;
