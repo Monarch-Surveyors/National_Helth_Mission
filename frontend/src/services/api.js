@@ -10,7 +10,7 @@ import {
   FACILITY_ENDPOINTS,
   OFFICE_ENDPOINTS
 } from '../endpoints';
-import keycloak from '../auth/keycloak';
+import keycloak, { initKeycloak } from '../auth/keycloak';
 
 // Centralized API Base URL sourced exclusively from Vite environment
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -43,6 +43,12 @@ export function buildUrl(endpoint, params = {}) {
 }
 
 /**
+ * Guard to prevent multiple simultaneous 401 redirects when
+ * several parallel requests all fail authentication at once.
+ */
+let _redirectingToLogin = false;
+
+/**
  * Generic fetch wrapper with comprehensive error handling.
  */
 export async function fetchJson(url, options = {}) {
@@ -50,6 +56,10 @@ export async function fetchJson(url, options = {}) {
     const authHeaders = {};
 
     if (keycloak) {
+      // 1. Ensure Keycloak initialization has completed before sending requests
+      await initKeycloak();
+
+      // 2. Ensure token freshness
       if (keycloak.authenticated) {
         try {
           await keycloak.updateToken(30);
@@ -61,8 +71,13 @@ export async function fetchJson(url, options = {}) {
         }
       }
 
+      // 3. Attach Bearer token
       if (keycloak.token) {
         authHeaders['Authorization'] = `Bearer ${keycloak.token}`;
+      } else {
+        // Prevent firing unauthenticated API requests that trigger 401s and unwanted redirects
+        console.warn('Protected API request prevented: Keycloak token is not available.');
+        throw new Error('Authentication required: Token is missing or session has not completed initialization.');
       }
     }
 
@@ -76,10 +91,13 @@ export async function fetchJson(url, options = {}) {
     });
 
     if (response.status === 401) {
-      if (keycloak) {
-        keycloak.clearToken();
+      if (!_redirectingToLogin) {
+        _redirectingToLogin = true;
+        if (keycloak) {
+          keycloak.clearToken();
+        }
+        window.location.href = '/';
       }
-      window.location.href = '/';
       throw new Error('Unauthorized (401). Redirecting to login.');
     }
 
@@ -372,10 +390,20 @@ export async function getIphsGaps() {
   return await fetchJson(url);
 }
 
+/**
+ * GET /api/auth-test/
+ * Diagnostic auth test endpoint returning authenticated state and Keycloak claims.
+ */
+export async function getAuthTest() {
+  const url = buildUrl(ANALYTICS_ENDPOINTS.AUTH_TEST);
+  return await fetchJson(url);
+}
+
 export const nhmApi = {
   API_BASE_URL,
   buildUrl,
   fetchJson,
+  getAuthTest,
   getFacilityTypes,
   getOwnershipTypes,
   getDistricts,
