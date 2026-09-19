@@ -1,6 +1,7 @@
 from decimal import Decimal
 
-from django.http import JsonResponse
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
 from sqlalchemy import String, and_, cast, func
 from sqlalchemy.orm import joinedload
 
@@ -21,10 +22,6 @@ from .db_models import (
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-def _method_not_allowed(request):
-    return JsonResponse({"error": "Method not allowed"}, status=405)
-
 
 def _parse_int(request, name):
     value = request.GET.get(name)
@@ -109,13 +106,34 @@ def _iphs_available():
 
 
 # ---------------------------------------------------------------------------
+# Auth Test API
+# ---------------------------------------------------------------------------
+
+@api_view(["GET"])
+def auth_test(request):
+    claims = getattr(request, "auth", None)
+    if not isinstance(claims, dict) and hasattr(request.user, "claims"):
+        claims = getattr(request.user, "claims", {})
+
+    return Response(
+        {
+            "authenticated": True,
+            "username": getattr(request.user, "username", getattr(request.user, "preferred_username", None)),
+            "email": getattr(request.user, "email", None),
+            "user_id": getattr(request.user, "sub", None),
+            "roles": list(getattr(request.user, "roles", [])),
+            "groups": list(getattr(request.user, "groups", [])),
+            "claims": claims if isinstance(claims, dict) else {},
+        }
+    )
+
+
+# ---------------------------------------------------------------------------
 # Reference APIs
 # ---------------------------------------------------------------------------
 
+@api_view(["GET"])
 def facility_types(request):
-    if request.method != "GET":
-        return _method_not_allowed(request)
-
     session = SessionLocal()
     try:
         rows = (
@@ -124,7 +142,7 @@ def facility_types(request):
             .all()
         )
 
-        return JsonResponse(
+        return Response(
             [
                 {
                     "id": row.id,
@@ -132,17 +150,14 @@ def facility_types(request):
                     "label": row.label,
                 }
                 for row in rows
-            ],
-            safe=False,
+            ]
         )
     finally:
         session.close()
 
 
+@api_view(["GET"])
 def ownership_types(request):
-    if request.method != "GET":
-        return _method_not_allowed(request)
-
     session = SessionLocal()
     try:
         rows = (
@@ -151,46 +166,40 @@ def ownership_types(request):
             .all()
         )
 
-        return JsonResponse(
+        return Response(
             [
                 {
                     "id": row.id,
                     "label": row.label,
                 }
                 for row in rows
-            ],
-            safe=False,
+            ]
         )
     finally:
         session.close()
 
 
+@api_view(["GET"])
 def districts(request):
-    if request.method != "GET":
-        return _method_not_allowed(request)
-
     session = SessionLocal()
     try:
         rows = session.query(District).order_by(District.name).all()
 
-        return JsonResponse(
+        return Response(
             [
                 {
                     "id": row.id,
                     "name": row.name,
                 }
                 for row in rows
-            ],
-            safe=False,
+            ]
         )
     finally:
         session.close()
 
 
+@api_view(["GET"])
 def talukas(request):
-    if request.method != "GET":
-        return _method_not_allowed(request)
-
     session = SessionLocal()
 
     try:
@@ -203,7 +212,7 @@ def talukas(request):
 
         rows = query.all()
 
-        return JsonResponse(
+        return Response(
             [
                 {
                     "id": row.id,
@@ -211,25 +220,22 @@ def talukas(request):
                     "district_id": row.district_id,
                 }
                 for row in rows
-            ],
-            safe=False,
+            ]
         )
 
     except ValueError as exc:
-        return JsonResponse({"error": str(exc)}, status=400)
+        return Response({"error": str(exc)}, status=400)
 
     finally:
         session.close()
 
 
+@api_view(["GET"])
 def filter_options(request):
-    if request.method != "GET":
-        return _method_not_allowed(request)
-
     session = SessionLocal()
 
     try:
-        return JsonResponse(
+        return Response(
             {
                 "districts": [
                     {"id": row.id, "name": row.name}
@@ -276,10 +282,8 @@ def filter_options(request):
 # Record APIs
 # ---------------------------------------------------------------------------
 
+@api_view(["GET"])
 def facilities(request):
-    if request.method != "GET":
-        return _method_not_allowed(request)
-
     session = SessionLocal()
 
     try:
@@ -296,7 +300,7 @@ def facilities(request):
 
         rows = query.all()
 
-        return JsonResponse(
+        return Response(
             [
                 {
                     "id": row.id,
@@ -344,21 +348,18 @@ def facilities(request):
                     "remarks": row.remarks,
                 }
                 for row in rows
-            ],
-            safe=False,
+            ]
         )
 
     except ValueError as exc:
-        return JsonResponse({"error": str(exc)}, status=400)
+        return Response({"error": str(exc)}, status=400)
 
     finally:
         session.close()
 
 
+@api_view(["GET"])
 def offices(request):
-    if request.method != "GET":
-        return _method_not_allowed(request)
-
     session = SessionLocal()
 
     try:
@@ -374,7 +375,7 @@ def offices(request):
 
         rows = query.all()
 
-        return JsonResponse(
+        return Response(
             [
                 {
                     "id": row.id,
@@ -415,12 +416,11 @@ def offices(request):
                     "remarks": row.remarks,
                 }
                 for row in rows
-            ],
-            safe=False,
+            ]
         )
 
     except ValueError as exc:
-        return JsonResponse({"error": str(exc)}, status=400)
+        return Response({"error": str(exc)}, status=400)
 
     finally:
         session.close()
@@ -430,10 +430,8 @@ def offices(request):
 # Basic analytics
 # ---------------------------------------------------------------------------
 
+@api_view(["GET"])
 def analytics_overview(request):
-    if request.method != "GET":
-        return _method_not_allowed(request)
-
     session = SessionLocal()
 
     try:
@@ -453,7 +451,7 @@ def analytics_overview(request):
             .scalar()
         )
 
-        return JsonResponse(
+        return Response(
             {
                 "facilities": facility_count,
                 "offices": office_count,
@@ -465,16 +463,14 @@ def analytics_overview(request):
         )
 
     except ValueError as exc:
-        return JsonResponse({"error": str(exc)}, status=400)
+        return Response({"error": str(exc)}, status=400)
 
     finally:
         session.close()
 
 
+@api_view(["GET"])
 def analytics_facilities_by_district(request):
-    if request.method != "GET":
-        return _method_not_allowed(request)
-
     session = SessionLocal()
 
     try:
@@ -500,7 +496,7 @@ def analytics_facilities_by_district(request):
 
         rows = query.all()
 
-        return JsonResponse(
+        return Response(
             [
                 {
                     "district_id": row.district_id,
@@ -509,18 +505,15 @@ def analytics_facilities_by_district(request):
                     "land_area_sqm": _safe_number(row.land_area_sqm),
                 }
                 for row in rows
-            ],
-            safe=False,
+            ]
         )
 
     finally:
         session.close()
 
 
+@api_view(["GET"])
 def analytics_facilities_by_type(request):
-    if request.method != "GET":
-        return _method_not_allowed(request)
-
     session = SessionLocal()
 
     try:
@@ -545,7 +538,7 @@ def analytics_facilities_by_type(request):
 
         rows = query.all()
 
-        return JsonResponse(
+        return Response(
             [
                 {
                     "facility_type_id": row.facility_type_id,
@@ -554,18 +547,15 @@ def analytics_facilities_by_type(request):
                     "facility_count": row.facility_count,
                 }
                 for row in rows
-            ],
-            safe=False,
+            ]
         )
 
     finally:
         session.close()
 
 
+@api_view(["GET"])
 def analytics_offices_by_district(request):
-    if request.method != "GET":
-        return _method_not_allowed(request)
-
     session = SessionLocal()
 
     try:
@@ -589,7 +579,7 @@ def analytics_offices_by_district(request):
 
         rows = query.all()
 
-        return JsonResponse(
+        return Response(
             [
                 {
                     "district_id": row.district_id,
@@ -598,18 +588,15 @@ def analytics_offices_by_district(request):
                     "land_area_sqm": _safe_number(row.land_area_sqm),
                 }
                 for row in rows
-            ],
-            safe=False,
+            ]
         )
 
     finally:
         session.close()
 
 
+@api_view(["GET"])
 def analytics_land_by_district(request):
-    if request.method != "GET":
-        return _method_not_allowed(request)
-
     session = SessionLocal()
 
     try:
@@ -637,7 +624,7 @@ def analytics_land_by_district(request):
 
         rows = query.all()
 
-        return JsonResponse(
+        return Response(
             [
                 {
                     "district_id": row.district_id,
@@ -651,18 +638,15 @@ def analytics_land_by_district(request):
                     ),
                 }
                 for row in rows
-            ],
-            safe=False,
+            ]
         )
 
     finally:
         session.close()
 
 
+@api_view(["GET"])
 def analytics_ownership(request):
-    if request.method != "GET":
-        return _method_not_allowed(request)
-
     session = SessionLocal()
 
     try:
@@ -689,7 +673,7 @@ def analytics_ownership(request):
 
         rows = query.all()
 
-        return JsonResponse(
+        return Response(
             [
                 {
                     "ownership_type_id": row.ownership_type_id,
@@ -698,18 +682,15 @@ def analytics_ownership(request):
                     "land_area_sqm": _safe_number(row.land_area_sqm),
                 }
                 for row in rows
-            ],
-            safe=False,
+            ]
         )
 
     finally:
         session.close()
 
 
+@api_view(["GET"])
 def analytics_documents(request):
-    if request.method != "GET":
-        return _method_not_allowed(request)
-
     session = SessionLocal()
 
     try:
@@ -734,16 +715,14 @@ def analytics_documents(request):
                 "missing": total - available,
             }
 
-        return JsonResponse(result)
+        return Response(result)
 
     finally:
         session.close()
 
 
+@api_view(["GET"])
 def analytics_data_quality(request):
-    if request.method != "GET":
-        return _method_not_allowed(request)
-
     session = SessionLocal()
 
     try:
@@ -797,7 +776,7 @@ def analytics_data_quality(request):
             ).count(),
         }
 
-        return JsonResponse(
+        return Response(
             {
                 "total_facilities": total,
                 "fields": fields,
@@ -812,12 +791,10 @@ def analytics_data_quality(request):
 # IPHS 2022 — limited-data analysis
 # ---------------------------------------------------------------------------
 
+@api_view(["GET"])
 def iphs_summary(request):
-    if request.method != "GET":
-        return _method_not_allowed(request)
-
     if not _iphs_available():
-        return JsonResponse(
+        return Response(
             {
                 "analysis_mode": "limited_data_subset",
                 "status": "IPHS_REFERENCE_TABLES_NOT_MIGRATED",
@@ -831,7 +808,7 @@ def iphs_summary(request):
     session = SessionLocal()
 
     try:
-        return JsonResponse(
+        return Response(
             {
                 "analysis_mode": "limited_data_subset",
                 "standards": session.query(IPHSStandard).count(),
@@ -849,12 +826,10 @@ def iphs_summary(request):
         session.close()
 
 
+@api_view(["GET"])
 def iphs_norms(request):
-    if request.method != "GET":
-        return _method_not_allowed(request)
-
     if not _iphs_available():
-        return JsonResponse(
+        return Response(
             {
                 "analysis_mode": "limited_data_subset",
                 "status": "IPHS_REFERENCE_TABLES_NOT_MIGRATED",
@@ -900,7 +875,7 @@ def iphs_norms(request):
                 }
             )
 
-        return JsonResponse(
+        return Response(
             {
                 "analysis_mode": "limited_data_subset",
                 "rows": data,
@@ -911,12 +886,10 @@ def iphs_norms(request):
         session.close()
 
 
+@api_view(["GET"])
 def iphs_gaps(request):
-    if request.method != "GET":
-        return _method_not_allowed(request)
-
     if not _iphs_available():
-        return JsonResponse(
+        return Response(
             {
                 "analysis_mode": "limited_data_subset",
                 "status": "IPHS_REFERENCE_TABLES_NOT_MIGRATED",
@@ -1028,7 +1001,7 @@ def iphs_gaps(request):
 
             result.append(item)
 
-        return JsonResponse(
+        return Response(
             {
                 "analysis_mode": "limited_data_subset",
                 "scope_note": (
