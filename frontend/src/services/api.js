@@ -10,7 +10,7 @@ import {
   FACILITY_ENDPOINTS,
   OFFICE_ENDPOINTS
 } from '../endpoints';
-import keycloak from '../auth/keycloak';
+import keycloak, { initKeycloak } from '../auth/keycloak';
 
 // Centralized API Base URL sourced exclusively from Vite environment
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -50,19 +50,28 @@ export async function fetchJson(url, options = {}) {
     const authHeaders = {};
 
     if (keycloak) {
+      // 1. Ensure Keycloak initialization has completed before sending requests
+      await initKeycloak();
+
+      // 2. Ensure token freshness — if refresh fails, trigger a clean login redirect
       if (keycloak.authenticated) {
         try {
           await keycloak.updateToken(30);
         } catch (error) {
-          console.error('Failed to update Keycloak token:', error);
-          keycloak.clearToken();
-          window.location.href = '/';
-          throw new Error('Session expired. Redirecting to login.');
+          console.error('Failed to refresh Keycloak token — re-authenticating:', error);
+          // Use keycloak.login() instead of window.location.href so the session
+          // restores cleanly without resetting the keycloak-js internal state.
+          keycloak.login({ redirectUri: `${window.location.origin}/` });
+          throw new Error('Session expired. Re-authenticating...');
         }
       }
 
+      // 3. Attach Bearer token
       if (keycloak.token) {
         authHeaders['Authorization'] = `Bearer ${keycloak.token}`;
+      } else {
+        console.warn('Protected API request prevented: Keycloak token is not available.');
+        throw new Error('Authentication required: Token is missing.');
       }
     }
 
@@ -76,11 +85,10 @@ export async function fetchJson(url, options = {}) {
     });
 
     if (response.status === 401) {
-      if (keycloak) {
-        keycloak.clearToken();
-      }
-      window.location.href = '/';
-      throw new Error('Unauthorized (401). Redirecting to login.');
+      // Do NOT redirect or clear the token here — that causes a reload loop.
+      // The token may be valid; the 401 might be a transient backend issue.
+      // Components using Promise.allSettled() will handle this as a rejected promise.
+      throw new Error('Unauthorized (401): API request rejected. Check backend authentication config.');
     }
 
     if (!response.ok) {
@@ -372,10 +380,20 @@ export async function getIphsGaps() {
   return await fetchJson(url);
 }
 
+/**
+ * GET /api/auth-test/
+ * Diagnostic auth test endpoint returning authenticated state and Keycloak claims.
+ */
+export async function getAuthTest() {
+  const url = buildUrl(ANALYTICS_ENDPOINTS.AUTH_TEST);
+  return await fetchJson(url);
+}
+
 export const nhmApi = {
   API_BASE_URL,
   buildUrl,
   fetchJson,
+  getAuthTest,
   getFacilityTypes,
   getOwnershipTypes,
   getDistricts,

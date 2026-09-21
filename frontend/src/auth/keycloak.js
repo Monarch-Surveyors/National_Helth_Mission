@@ -9,13 +9,20 @@ const keycloak = new Keycloak({
 let initPromise = null;
 
 /**
- * Initializes Keycloak with check-sso and PKCE S256.
- * Guaranteed to run only once even in React StrictMode.
+ * Initializes Keycloak with check-sso + silent SSO check.
+ *
+ * Uses silentCheckSsoRedirectUri so the session check happens via a hidden iframe
+ * instead of a full-page redirect. This prevents the token from being missing
+ * when page components fire their first API calls.
+ *
+ * Guaranteed to run only once even in React 19 StrictMode.
  */
 export function initKeycloak() {
   if (!initPromise) {
     initPromise = keycloak.init({
       onLoad: "check-sso",
+      silentCheckSsoRedirectUri: `${window.location.origin}/silent_sso.html`,
+      checkLoginIframe: false,
       pkceMethod: "S256",
     });
   }

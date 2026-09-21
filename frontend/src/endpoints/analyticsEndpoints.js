@@ -12,6 +12,7 @@ export const ANALYTICS_ENDPOINTS = {
   OWNERSHIP: 'analytics/ownership',
   DOCUMENTS: 'analytics/documents',
   DATA_QUALITY: 'analytics/data-quality',
+  AUTH_TEST: 'auth-test',
   IPHS_SUMMARY: 'analytics/iphs/summary',
   IPHS_NORMS: 'analytics/iphs/norms',
   IPHS_GAPS: 'analytics/iphs/gaps'
