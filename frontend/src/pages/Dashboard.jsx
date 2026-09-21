@@ -210,23 +210,33 @@ function Dashboard() {
 
   return (
     <div>
-      {/* Dashboard Top Action Bar */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
-        <button
-          type="button"
-          className="pagination-btn"
-          style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}
-          onClick={loadDashboardData}
-          disabled={loading}
-          title="Refresh live metrics from backend"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M23 4v6h-6"></path>
-            <path d="M1 20v-6h6"></path>
-            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-          </svg>
-          {loading ? 'Refreshing...' : 'Refresh'}
-        </button>
+      {/* Page Header */}
+      <div className="page-header">
+        <div className="page-header-top">
+          <div>
+            <h1 className="page-title">Dashboard Overview</h1>
+            <p className="page-subtitle">
+              Public Health Department • Statewide Health Infrastructure, Facilities, Offices, and Land Overview
+            </p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              type="button"
+              className="pagination-btn"
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}
+              onClick={loadDashboardData}
+              disabled={loading}
+              title="Refresh live metrics from backend"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M23 4v6h-6"></path>
+                <path d="M1 20v-6h6"></path>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+              </svg>
+              {loading ? 'Refreshing...' : 'Refresh'}
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Top Filter Bar with Reusable SelectBox Components */}

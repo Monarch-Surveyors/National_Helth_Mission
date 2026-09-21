@@ -51,3 +51,9 @@ Thumbs.db
 data/
 backend/migrations/*
 !backend/migrations/.gitkeep
+
+# Keycloak local setup & integration files
+keycloak/
+keycloak-local/
+*realm-export*.json
+

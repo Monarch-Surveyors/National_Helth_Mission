@@ -65,10 +65,10 @@ function Sidebar({ isOpen, onClose }) {
     <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
       {/* Brand Header */}
       <div className="sidebar-header">
-        <div className="sidebar-emblem">NHM</div>
+        <img src="/nhm-logo.png" alt="NHM Maharashtra Logo" className="sidebar-logo" />
         <div className="sidebar-brand-text">
           <h2>NHM Maharashtra</h2>
-          <span>Health Infrastructure</span>
+          <span>HEALTH INFRASTRUCTURE &amp; ASSET MONITORING</span>
         </div>
       </div>
 
