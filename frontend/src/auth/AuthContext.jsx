@@ -23,10 +23,10 @@ export function AuthProvider({ children }) {
     };
 
     keycloak.onAuthLogout = () => {
-      keycloak.clearToken();
       setAuthenticated(false);
       setUser(null);
-      window.location.href = '/';
+      // Navigate to login page without a hard browser reload
+      keycloak.login({ redirectUri: `${window.location.origin}/` });
     };
 
     keycloak.onAuthRefreshSuccess = () => {
@@ -34,18 +34,16 @@ export function AuthProvider({ children }) {
     };
 
     keycloak.onAuthRefreshError = () => {
-      keycloak.clearToken();
       setAuthenticated(false);
       setUser(null);
-      window.location.href = '/';
+      keycloak.login({ redirectUri: `${window.location.origin}/` });
     };
 
     keycloak.onTokenExpired = () => {
       keycloak.updateToken(30).catch(() => {
-        keycloak.clearToken();
         setAuthenticated(false);
         setUser(null);
-        window.location.href = '/';
+        keycloak.login({ redirectUri: `${window.location.origin}/` });
       });
     };
 
