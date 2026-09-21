@@ -1,7 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
-import LoginPage from '../pages/LoginPage';
 import LoadingScreen from '../components/LoadingScreen';
 
 /**
@@ -9,11 +8,17 @@ import LoadingScreen from '../components/LoadingScreen';
  *
  * Handles routing logic for the `/` root route:
  * - initializing: displays loading screen
- * - authenticated: navigates to `/dashboard`
- * - unauthenticated: renders `LoginPage`
+ * - authenticated: navigates directly to `/dashboard`
+ * - unauthenticated: immediately triggers Keycloak login redirect
  */
 function RootAuthEntry() {
-  const { initializing, authenticated } = useAuth();
+  const { initializing, authenticated, login } = useAuth();
+
+  useEffect(() => {
+    if (!initializing && !authenticated) {
+      login();
+    }
+  }, [initializing, authenticated, login]);
 
   if (initializing) {
     return <LoadingScreen message="Initializing session..." />;
@@ -23,8 +28,7 @@ function RootAuthEntry() {
     return <Navigate to="/dashboard" replace />;
   }
 
-  return <LoginPage />;
+  return <LoadingScreen message="Redirecting to login..." />;
 }
 
 export default RootAuthEntry;
-

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import keycloak, { initKeycloak } from './keycloak';
 
 const AuthContext = createContext({
@@ -63,17 +63,17 @@ export function AuthProvider({ children }) {
       });
   }, []);
 
-  const login = () => {
+  const login = useCallback(() => {
     return keycloak.login({
       redirectUri: `${window.location.origin}/`,
     });
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     return keycloak.logout({
       redirectUri: `${window.location.origin}/`,
     });
-  };
+  }, []);
 
   const value = {
     initializing,
