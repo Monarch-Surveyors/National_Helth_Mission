@@ -9,6 +9,7 @@ import {
   ResponsiveContainer,
   Legend,
   Cell,
+  LabelList,
   AreaChart,
   Area,
   RadarChart,
@@ -77,8 +78,125 @@ function calculatePercent(part, total) {
   return Math.round(((part || 0) / total) * 100);
 }
 
+function formatPercentage(pct) {
+  if (pct === undefined || pct === null || isNaN(Number(pct)) || Number(pct) === 0) return '0%';
+  const num = Number(pct);
+  if (num < 0.05) return `${num.toFixed(2)}%`;
+  return `${num.toFixed(1)}%`;
+}
+
+
+
+const CircularProgressRing = ({
+  percentage,
+  size = 46,
+  strokeWidth = 4,
+  color = '#16a34a',
+  textColor = '#0f172a'
+}) => {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  // Ensure tiny percentages (e.g. 0.01%) have a visible colored segment
+  const visualPct = percentage > 0 ? Math.max(percentage, 1.2) : 0;
+  const strokeDashoffset = circumference - (visualPct / 100) * circumference;
+  const displayPct = formatPercentage(percentage);
+
+  return (
+    <div
+      style={{
+        position: 'relative',
+        width: size,
+        height: size,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0
+      }}
+    >
+      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="#e2e8f0"
+          strokeWidth={strokeWidth}
+          fill="none"
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={color}
+          strokeWidth={strokeWidth}
+          strokeDasharray={circumference}
+          strokeDashoffset={strokeDashoffset}
+          strokeLinecap="round"
+          fill="none"
+          style={{ transition: 'stroke-dashoffset 0.4s ease' }}
+        />
+      </svg>
+      <span
+        style={{
+          position: 'absolute',
+          fontSize: size < 42 ? '8.5px' : '10px',
+          fontWeight: 700,
+          color: textColor,
+          textAlign: 'center',
+          lineHeight: 1,
+          letterSpacing: '-0.3px'
+        }}
+      >
+        {displayPct}
+      </span>
+    </div>
+  );
+};
+
+const CustomBarTooltip = ({ active, payload }) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    if (!data) return null;
+    return (
+      <div
+        style={{
+          background: '#ffffff',
+          border: '1px solid #cbd5e1',
+          borderRadius: '8px',
+          padding: '9px 13px',
+          boxShadow: '0 4px 14px rgba(0, 0, 0, 0.12)',
+          fontSize: '12px',
+          color: '#1e293b',
+          lineHeight: 1.5,
+          minWidth: '200px',
+          pointerEvents: 'none'
+        }}
+      >
+        <div style={{ fontWeight: 800, fontSize: '13px', color: '#0f172a', marginBottom: '4px', borderBottom: '1px solid #f1f5f9', paddingBottom: '3px' }}>
+          {data.label || data.code}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
+          <span style={{ color: '#64748b' }}>Facility Type:</span>
+          <span style={{ fontWeight: 700, color: '#0f172a' }}>{data.code}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
+          <span style={{ color: '#64748b' }}>Exact Count:</span>
+          <span style={{ fontWeight: 800, color: '#1e3a8a' }}>{Number(data.facility_count || 0).toLocaleString()}</span>
+        </div>
+        {data.total_facilities > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
+            <span style={{ color: '#64748b' }}>Share of Total:</span>
+            <span style={{ fontWeight: 700, color: '#0d9488' }}>
+              {formatPercentage(((Number(data.facility_count) || 0) / data.total_facilities) * 100)}
+            </span>
+          </div>
+        )}
+      </div>
+    );
+  }
+  return null;
+};
+
 /**
- * Analytics Page
  *
  * Dedicated, centralized public health infrastructure intelligence platform.
  * Contains all detailed charts, district distributions, land analytics, document audit,
@@ -95,6 +213,7 @@ function Analytics() {
   const [selectedOwnership, setSelectedOwnership] = useState('All');
   const [selectedSort, setSelectedSort] = useState('count_desc');
   const [selectedLimit, setSelectedLimit] = useState(15);
+  const [facilityViewMode, setFacilityViewMode] = useState('hierarchy');
 
   const handleResetFilters = () => {
     setSelectedDistrict('All');
@@ -354,13 +473,62 @@ function Analytics() {
   // Filtered Facilities by Type
   const filteredTypes = useMemo(() => {
     if (!Array.isArray(facilitiesByType)) return [];
+    const total = facilitiesByType.reduce((sum, item) => sum + (Number(item.facility_count) || 0), 0);
     return facilitiesByType
       .filter((t) => {
         if (selectedFacilityType === 'All') return true;
         return t.code === selectedFacilityType || t.label === selectedFacilityType;
       })
+      .map((item) => ({
+        ...item,
+        total_facilities: total
+      }))
       .sort((a, b) => (b.facility_count || 0) - (a.facility_count || 0));
   }, [facilitiesByType, selectedFacilityType]);
+
+  // Lookup map for fast retrieval of live facility counts by type code
+  const facilityTypeMap = useMemo(() => {
+    const map = new Map();
+    if (Array.isArray(facilitiesByType)) {
+      facilitiesByType.forEach((item) => {
+        if (item && item.code) {
+          map.set(item.code.trim().toUpperCase(), item);
+        }
+      });
+    }
+    return map;
+  }, [facilitiesByType]);
+
+  const getTypeInfo = useCallback(
+    (code, defaultLabel = '') => {
+      const item = facilityTypeMap.get(code.trim().toUpperCase());
+      return {
+        code,
+        label: item?.label || defaultLabel || code,
+        count: item?.facility_count ?? 0,
+        id: item?.facility_type_id || null
+      };
+    },
+    [facilityTypeMap]
+  );
+
+  const totalFacilityCount = useMemo(() => {
+    if (!Array.isArray(facilitiesByType)) return 0;
+    return facilitiesByType.reduce((sum, item) => sum + (Number(item.facility_count) || 0), 0);
+  }, [facilitiesByType]);
+
+  const dhItem = facilityTypeMap.get('DH');
+  const hasDH = Boolean(dhItem && (dhItem.facility_count !== undefined && dhItem.facility_count !== null));
+  const dhInfo = getTypeInfo('DH', 'District Hospital');
+  const dhPct = totalFacilityCount > 0 ? (dhInfo.count / totalFacilityCount) * 100 : 0;
+
+  const handleFacilityTypeClick = (code) => {
+    if (selectedFacilityType === code) {
+      setSelectedFacilityType('All');
+    } else {
+      setSelectedFacilityType(code);
+    }
+  };
 
   // Filtered Ownership Data
   const filteredOwnership = useMemo(() => {
@@ -573,6 +741,122 @@ function Analytics() {
     return rows.filter((r) => r.facility_code === selectedFacilityType);
   }, [iphsGaps, selectedFacilityType]);
 
+  const renderRuralCard = (code, defaultLabel, ringColor) => {
+    const info = getTypeInfo(code, defaultLabel);
+    const pct = totalFacilityCount > 0 ? (info.count / totalFacilityCount) * 100 : 0;
+    const isSelected = selectedFacilityType === code;
+    const isDimmed = selectedFacilityType !== 'All' && !isSelected;
+
+    return (
+      <div
+        key={code}
+        className={`nhm-info-card ${isSelected ? 'active' : ''} ${isDimmed ? 'dimmed' : ''}`}
+        onClick={() => handleFacilityTypeClick(code)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') handleFacilityTypeClick(code);
+        }}
+        title={`${info.code} - ${info.label}: ${formatNumber(info.count)} Facilities (${formatPercentage(pct)}). Click to filter.`}
+      >
+        <div className="nhm-info-card-left">
+          <span className="nhm-info-card-code">{info.code}</span>
+          <span className="nhm-info-card-label">{info.label}</span>
+        </div>
+        <div className="nhm-info-card-center">
+          <span className="nhm-info-card-count">{formatNumber(info.count)}</span>
+          <span className="nhm-info-card-pct" style={{ color: ringColor }}>{formatPercentage(pct)}</span>
+        </div>
+        <CircularProgressRing percentage={pct} color={ringColor} size={48} textColor="#0f172a" />
+      </div>
+    );
+  };
+
+  const renderUrbanCard = (code, defaultLabel, countColor, ringColor) => {
+    const info = getTypeInfo(code, defaultLabel);
+    const pct = totalFacilityCount > 0 ? (info.count / totalFacilityCount) * 100 : 0;
+    const isSelected = selectedFacilityType === code;
+    const isDimmed = selectedFacilityType !== 'All' && !isSelected;
+
+    return (
+      <div
+        key={code}
+        className={`nhm-info-card ${isSelected ? 'active' : ''} ${isDimmed ? 'dimmed' : ''}`}
+        onClick={() => handleFacilityTypeClick(code)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') handleFacilityTypeClick(code);
+        }}
+        title={`${info.code} - ${info.label}: ${formatNumber(info.count)} Facilities (${formatPercentage(pct)}). Click to filter.`}
+      >
+        <div className="nhm-info-card-left">
+          <span className="nhm-info-card-code">{info.code}</span>
+          <span className="nhm-info-card-label">{info.label}</span>
+        </div>
+        <div className="nhm-info-card-center">
+          <span className="nhm-info-card-count" style={{ color: countColor }}>{formatNumber(info.count)}</span>
+          <span className="nhm-info-card-pct" style={{ color: ringColor }}>{formatPercentage(pct)}</span>
+        </div>
+        <CircularProgressRing percentage={pct} color={ringColor} size={48} textColor="#0f172a" />
+      </div>
+    );
+  };
+
+  const renderUrbanDualPod = () => {
+    const uhwc = getTypeInfo('UHWC', 'Urban Health & Wellness Centre');
+    const hbt = getTypeInfo('HBT', 'HBT Aapla Dawakhana');
+    const uhwcPct = totalFacilityCount > 0 ? (uhwc.count / totalFacilityCount) * 100 : 0;
+    const hbtPct = totalFacilityCount > 0 ? (hbt.count / totalFacilityCount) * 100 : 0;
+    const isUhwcSelected = selectedFacilityType === 'UHWC';
+    const isHbtSelected = selectedFacilityType === 'HBT';
+    const isAnyOther = selectedFacilityType !== 'All';
+
+    return (
+      <div className="nhm-urban-dual-wrapper">
+        <div
+          className={`nhm-urban-dual-card ${isUhwcSelected ? 'active' : ''} ${isAnyOther && !isUhwcSelected ? 'dimmed' : ''}`}
+          onClick={() => handleFacilityTypeClick('UHWC')}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') handleFacilityTypeClick('UHWC');
+          }}
+          title={`${uhwc.code} - ${uhwc.label}: ${formatNumber(uhwc.count)} Facilities (${formatPercentage(uhwcPct)}). Click to filter.`}
+        >
+          <div className="nhm-urban-dual-left">
+            <span className="nhm-urban-dual-code">{uhwc.code}</span>
+            <span className="nhm-urban-dual-desc">{uhwc.label}</span>
+            <span className="nhm-urban-dual-count">{formatNumber(uhwc.count)}</span>
+            <span className="nhm-urban-dual-pct" style={{ color: '#06b6d4' }}>{formatPercentage(uhwcPct)}</span>
+          </div>
+          <CircularProgressRing percentage={uhwcPct} color="#06b6d4" size={40} textColor="#0f172a" />
+        </div>
+
+        <div
+          className={`nhm-urban-dual-card ${isHbtSelected ? 'active' : ''} ${isAnyOther && !isHbtSelected ? 'dimmed' : ''}`}
+          onClick={() => handleFacilityTypeClick('HBT')}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') handleFacilityTypeClick('HBT');
+          }}
+          title={`${hbt.code} - ${hbt.label}: ${formatNumber(hbt.count)} Facilities (${formatPercentage(hbtPct)}). Click to filter.`}
+        >
+          <div className="nhm-urban-dual-left">
+            <span className="nhm-urban-dual-code">{hbt.code}</span>
+            <span className="nhm-urban-dual-desc">{hbt.label}</span>
+            <span className="nhm-urban-dual-count">{formatNumber(hbt.count)}</span>
+            <span className="nhm-urban-dual-pct" style={{ color: '#8b5cf6' }}>{formatPercentage(hbtPct)}</span>
+          </div>
+          <CircularProgressRing percentage={hbtPct} color="#8b5cf6" size={40} textColor="#0f172a" />
+        </div>
+      </div>
+    );
+  };
+
+
+
   return (
     <div>
       {/* Page Header */}
@@ -760,13 +1044,79 @@ function Analytics() {
         </div>
       )}
 
-      {/* SECTION 2 & 3: FACILITIES BY TYPE & OWNERSHIP DISTRIBUTION */}
-      <div className="charts-grid-2col">
-        {/* Chart 1: Facilities by Type */}
+      {/* SECTION 1: FACILITIES BY TYPE (Healthcare Delivery Hierarchy) */}
+      <div style={{ marginBottom: '24px' }}>
         <ChartCard
           title="1. Facilities by Type"
           subtitle="Distribution of registered health facilities by facility type"
-          badge={`${filteredTypes.length} Types`}
+          badge={`${facilitiesByType.length || 14} Types`}
+          action={
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div className="nhm-ref-total-badge">
+                <div className="nhm-ref-total-icon">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="16" x2="12" y2="12" />
+                    <line x1="12" y1="8" x2="12.01" y2="8" />
+                  </svg>
+                </div>
+                <div className="nhm-ref-total-text">
+                  <span className="nhm-ref-total-label">Total Facilities</span>
+                  <span className="nhm-ref-total-num">{formatNumber(totalFacilityCount)}</span>
+                </div>
+              </div>
+
+              {selectedFacilityType !== 'All' && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedFacilityType('All')}
+                  className="btn btn-sm"
+                  style={{
+                    fontSize: '11px',
+                    padding: '3px 8px',
+                    background: '#eff6ff',
+                    color: '#2563eb',
+                    border: '1px solid #bfdbfe'
+                  }}
+                  title="Reset Facility Type Filter"
+                >
+                  Clear Filter ({selectedFacilityType}) ×
+                </button>
+              )}
+              <div style={{ display: 'inline-flex', borderRadius: '6px', border: '1px solid #cbd5e1', overflow: 'hidden' }}>
+                <button
+                  type="button"
+                  onClick={() => setFacilityViewMode('hierarchy')}
+                  style={{
+                    padding: '4px 10px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    border: 'none',
+                    background: facilityViewMode === 'hierarchy' ? '#1e3a8a' : '#ffffff',
+                    color: facilityViewMode === 'hierarchy' ? '#ffffff' : '#64748b',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Hierarchy View
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFacilityViewMode('chart')}
+                  style={{
+                    padding: '4px 10px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    border: 'none',
+                    background: facilityViewMode === 'chart' ? '#1e3a8a' : '#ffffff',
+                    color: facilityViewMode === 'chart' ? '#ffffff' : '#64748b',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Bar Chart
+                </button>
+              </div>
+            </div>
+          }
         >
           {errors.type ? (
             <ErrorState
@@ -776,44 +1126,226 @@ function Analytics() {
               compact
             />
           ) : loading ? (
-            <LoadingState message="Loading facility type distribution..." height={320} />
-          ) : filteredTypes.length === 0 ? (
-            <EmptyState message="No facility types match selected filter." height={320} />
-          ) : (
-            <div style={{ width: '100%', height: 320 }}>
-              <ResponsiveContainer width="100%" height="100%">
+            <LoadingState message="Loading facility type distribution..." height={360} />
+          ) : facilitiesByType.length === 0 ? (
+            <EmptyState message="No facility types available." height={300} />
+          ) : facilityViewMode === 'chart' ? (
+            <div style={{ width: '100%', height: 350 }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '4px', paddingRight: '12px' }}>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    color: '#64748b',
+                    background: '#f8fafc',
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    border: '1px solid #e2e8f0'
+                  }}
+                >
+                  Scale: Logarithmic (Y-axis) • Exact Counts on Bars
+                </span>
+              </div>
+              <ResponsiveContainer width="100%" height={320}>
                 <BarChart
                   data={filteredTypes}
-                  margin={{ top: 15, right: 15, left: 10, bottom: 45 }}
+                  margin={{ top: 28, right: 15, left: 0, bottom: 45 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                   <XAxis
                     dataKey="code"
-                    tick={{ fill: '#475569', fontSize: 11, fontWeight: 600 }}
+                    tick={{ fill: '#334155', fontSize: 11, fontWeight: 700 }}
                     interval={0}
                     angle={-35}
                     textAnchor="end"
                   />
-                  <YAxis tick={{ fill: '#64748b', fontSize: 11 }} />
-                  <Tooltip
-                    formatter={(val, _name, item) => [
-                      `${Number(val).toLocaleString()} Facilities`,
-                      item.payload.label || item.payload.code
-                    ]}
-                    contentStyle={{ backgroundColor: '#ffffff', borderRadius: 6, borderColor: '#cbd5e1' }}
+                  <YAxis
+                    scale="log"
+                    domain={[1, 15000]}
+                    allowDataOverflow
+                    ticks={[1, 10, 100, 1000, 10000]}
+                    tick={{ fill: '#64748b', fontSize: 11 }}
+                    tickFormatter={(val) => Number(val).toLocaleString()}
                   />
-                  <Bar dataKey="facility_count" radius={[4, 4, 0, 0]}>
-                    {filteredTypes.map((entry, index) => (
-                      <Cell key={`type-bar-${entry.facility_type_id || index}`} fill={PALETTE[index % PALETTE.length]} />
-                    ))}
+                  <Tooltip content={<CustomBarTooltip />} />
+                  <Bar
+                    dataKey="facility_count"
+                    radius={[4, 4, 0, 0]}
+                  >
+                    {filteredTypes.map((entry, index) => {
+                      const isSelected = selectedFacilityType === entry.code;
+                      const isDimmed = selectedFacilityType !== 'All' && !isSelected;
+                      return (
+                        <Cell
+                          key={`type-bar-${entry.facility_type_id || entry.code || index}`}
+                          fill={PALETTE[index % PALETTE.length]}
+                          style={{
+                            cursor: 'pointer',
+                            opacity: isDimmed ? 0.35 : 1,
+                            stroke: isSelected ? '#0f172a' : 'none',
+                            strokeWidth: isSelected ? 2 : 0,
+                            transition: 'opacity 0.2s ease'
+                          }}
+                          onClick={() => handleFacilityTypeClick(entry.code)}
+                        />
+                      );
+                    })}
+                    <LabelList
+                      dataKey="facility_count"
+                      position="top"
+                      offset={6}
+                      formatter={(val) => Number(val || 0).toLocaleString()}
+                      style={{
+                        fill: '#0f172a',
+                        fontSize: '10px',
+                        fontWeight: 700
+                      }}
+                    />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
+          ) : (
+            <div className="nhm-infographic-container">
+              {/* 1. TOP DH FOCAL POINT & BRANCHING ARMS */}
+              <div className="nhm-dh-focal-wrapper">
+                {/* Left Branch Arm to Rural */}
+                <div className="nhm-dh-branch-arm left">
+                  <div className="nhm-dh-arm-line green" />
+                  <div className="nhm-dh-arm-elbow green" />
+                  <div className="nhm-dh-arm-arrow green">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M19 12l-7 7-7-7" /></svg>
+                  </div>
+                </div>
+
+                {/* Central DH Circle Node */}
+                {hasDH ? (
+                  <div
+                    className={`nhm-dh-circle-node ${selectedFacilityType === 'DH' ? 'active' : ''} ${selectedFacilityType !== 'All' && selectedFacilityType !== 'DH' ? 'dimmed' : ''}`}
+                    onClick={() => handleFacilityTypeClick('DH')}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') handleFacilityTypeClick('DH');
+                    }}
+                    title={`District Hospital (DH): ${formatNumber(dhInfo.count)} Facilities (${formatPercentage(dhPct)}). Click to filter.`}
+                  >
+                    <div className="nhm-dh-badge-top">L4</div>
+                    <div className="nhm-dh-icon">
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 21h18" />
+                        <path d="M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16" />
+                        <path d="M9 21v-4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v4" />
+                        <path d="M10 9h4" />
+                        <path d="M12 7v4" />
+                      </svg>
+                    </div>
+                    <span className="nhm-dh-code">DH</span>
+                    <span className="nhm-dh-label">{dhInfo.label || 'District Hospital'}</span>
+                    <span className="nhm-dh-count">{formatNumber(dhInfo.count)}</span>
+                    <span className="nhm-dh-share-badge">{formatPercentage(dhPct)} of total</span>
+                  </div>
+                ) : (
+                  <div style={{ width: 136, height: 136 }} />
+                )}
+
+                {/* Right Branch Arm to Urban */}
+                <div className="nhm-dh-branch-arm right">
+                  <div className="nhm-dh-arm-arrow blue">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M19 12l-7 7-7-7" /></svg>
+                  </div>
+                  <div className="nhm-dh-arm-elbow blue" />
+                  <div className="nhm-dh-arm-line blue" />
+                </div>
+              </div>
+
+              {/* 2. TWO-COLUMN SECTION: RURAL | URBAN */}
+              <div className="nhm-infographic-grid">
+                {/* LEFT COLUMN: RURAL HEALTH FACILITIES */}
+                <div className="nhm-track-column">
+                  <div className="nhm-track-header rural">
+                    <div className="nhm-track-header-icon">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>
+                    </div>
+                    <div className="nhm-track-header-text">
+                      <span className="nhm-track-title">RURAL HEALTH FACILITIES</span>
+                      <span className="nhm-track-subtitle">(Community to District-level Care)</span>
+                    </div>
+                  </div>
+
+                  <div className="nhm-track-arrow green">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M19 12l-7 7-7-7" /></svg>
+                  </div>
+
+                  {/* L1: SC */}
+                  <div className="nhm-level-circle l1">L1</div>
+                  {renderRuralCard('SC', 'Sub-Centre', '#16a34a')}
+
+                  <div className="nhm-track-arrow green">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M19 12l-7 7-7-7" /></svg>
+                  </div>
+
+                  {/* L2: PHC */}
+                  <div className="nhm-level-circle l2">L2</div>
+                  {renderRuralCard('PHC', 'Primary Health Centre', '#2563eb')}
+
+                  <div className="nhm-track-arrow green">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M19 12l-7 7-7-7" /></svg>
+                  </div>
+
+                  {/* L3: RH */}
+                  <div className="nhm-level-circle l3">L3</div>
+                  {renderRuralCard('RH', 'Rural Hospital', '#ea580c')}
+                </div>
+
+                {/* RIGHT COLUMN: URBAN HEALTH FACILITIES */}
+                <div className="nhm-track-column">
+                  <div className="nhm-track-header urban">
+                    <div className="nhm-track-header-icon">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/></svg>
+                    </div>
+                    <div className="nhm-track-header-text">
+                      <span className="nhm-track-title">URBAN HEALTH FACILITIES</span>
+                      <span className="nhm-track-subtitle">(Urban Primary to District-level Care)</span>
+                    </div>
+                  </div>
+
+                  <div className="nhm-track-arrow blue">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M19 12l-7 7-7-7" /></svg>
+                  </div>
+
+                  {/* L1: UHWC & HBT */}
+                  <div className="nhm-level-circle l1">L1</div>
+                  <div className="nhm-urban-branch-fork" />
+                  {renderUrbanDualPod()}
+                  <div className="nhm-urban-convergence-fork" />
+
+                  {/* L2: UPHC */}
+                  <div className="nhm-level-circle l2">L2</div>
+                  {renderUrbanCard('UPHC', 'Urban Primary Health Centre', '#2563eb', '#ec4899')}
+
+                  <div className="nhm-track-arrow blue">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M19 12l-7 7-7-7" /></svg>
+                  </div>
+
+                  {/* L3: UCHC */}
+                  <div className="nhm-level-circle l3">L3</div>
+                  {renderUrbanCard('UCHC', 'Urban Community Health Centre', '#dc2626', '#dc2626')}
+                </div>
+              </div>
+
+              {/* 4. FOOTER INFO NOTICE */}
+              <div className="nhm-footer-info-bar">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                <span>Percentages are calculated based on total registered facilities ({formatNumber(totalFacilityCount)}) and include all {facilitiesByType.length || 14} facility types.</span>
+              </div>
+            </div>
           )}
         </ChartCard>
+      </div>
 
-        {/* Chart 2: Ownership Distribution */}
+      {/* SECTION 2: OWNERSHIP DISTRIBUTION */}
+      <div style={{ marginBottom: '24px' }}>
         <ChartCard
           title="2. Ownership Distribution"
           subtitle="Breakdown of facilities by ownership category"
@@ -831,8 +1363,8 @@ function Analytics() {
           ) : filteredOwnership.length === 0 ? (
             <EmptyState message="No ownership categories match selected filter." height={320} />
           ) : (
-            <div style={{ maxHeight: '320px', overflowY: 'auto', paddingRight: '4px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ maxHeight: '360px', overflowY: 'auto', paddingRight: '4px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '10px' }}>
                 {filteredOwnership.map((item, idx) => {
                   const percent = calculatePercent(item.facility_count, overview?.facilities);
                   return (
