@@ -54,19 +54,59 @@ function Facilities() {
   const [talukaId, setTalukaId] = useState('All');
   const [facilityTypeId, setFacilityTypeId] = useState('All');
   const [ownershipTypeId, setOwnershipTypeId] = useState('All');
-  const [searchTerm, setSearchTerm] = useState('');
+  // Facilities independent state
+  const [facilityRecords, setFacilityRecords] = useState([]);
+  const [facilityPage, setFacilityPage] = useState(1);
+  const [facilityPageSize, setFacilityPageSize] = useState(10);
+  const [facilityPagination, setFacilityPagination] = useState({
+    page: 1,
+    page_size: 10,
+    total: 0,
+    total_pages: 0,
+    has_next: false,
+    has_previous: false
+  });
+  const [facilitySearch, setFacilitySearch] = useState('');
+  const [debouncedFacilitySearch, setDebouncedFacilitySearch] = useState('');
 
-  // Primary data state
-  const [records, setRecords] = useState([]);
+  // Offices independent state
+  const [officeRecords, setOfficeRecords] = useState([]);
+  const [officePage, setOfficePage] = useState(1);
+  const [officePageSize, setOfficePageSize] = useState(10);
+  const [officePagination, setOfficePagination] = useState({
+    page: 1,
+    page_size: 10,
+    total: 0,
+    total_pages: 0,
+    has_next: false,
+    has_previous: false
+  });
+  const [officeSearch, setOfficeSearch] = useState('');
+  const [debouncedOfficeSearch, setDebouncedOfficeSearch] = useState('');
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 6;
-
   // Selected item for detail modal
   const [selectedItem, setSelectedItem] = useState(null);
+
+  // Debounce search input for Facilities
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedFacilitySearch(facilitySearch);
+      setFacilityPage(1);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [facilitySearch]);
+
+  // Debounce search input for Offices
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedOfficeSearch(officeSearch);
+      setOfficePage(1);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [officeSearch]);
 
   // 1. Load Filter Metadata (Districts, Facility Types, Ownership Types) on mount
   useEffect(() => {
@@ -125,11 +165,12 @@ function Facilities() {
     return () => { isMounted = false; };
   }, [districtId]);
 
-  // 3. Fetch Facilities or Offices from live APIs
+  // 3a. Fetch Facilities from live API with server-side pagination
   useEffect(() => {
+    if (activeTab !== 'Facilities') return;
     let isMounted = true;
 
-    async function fetchData() {
+    async function fetchFacilitiesData() {
       setLoading(true);
       setError(null);
 
@@ -138,72 +179,164 @@ function Facilities() {
           district_id: districtId !== 'All' ? districtId : undefined,
           taluka_id: talukaId !== 'All' ? talukaId : undefined,
           ownership_type_id: ownershipTypeId !== 'All' ? ownershipTypeId : undefined,
+          facility_type_id: facilityTypeId !== 'All' ? facilityTypeId : undefined,
+          search: debouncedFacilitySearch.trim() || undefined,
+          page: facilityPage,
+          page_size: facilityPageSize
         };
 
-        let result = [];
-        if (activeTab === 'Offices') {
-          result = await getOffices(filters);
-        } else {
-          if (facilityTypeId !== 'All') {
-            filters.facility_type_id = facilityTypeId;
-          }
-          result = await getFacilities(filters);
-        }
+        const response = await getFacilities(filters);
 
         if (isMounted) {
-          setRecords(result);
+          setFacilityRecords(response.results || []);
+          setFacilityPagination(response.pagination || {
+            page: facilityPage,
+            page_size: facilityPageSize,
+            total: response.results?.length || 0,
+            total_pages: 1,
+            has_next: false,
+            has_previous: false
+          });
           setError(null);
-          setCurrentPage(1);
         }
       } catch {
         if (isMounted) {
           setError('Unable to connect to the backend API.');
-          setRecords([]);
+          setFacilityRecords([]);
+          setFacilityPagination({
+            page: facilityPage,
+            page_size: facilityPageSize,
+            total: 0,
+            total_pages: 0,
+            has_next: false,
+            has_previous: false
+          });
         }
       } finally {
         if (isMounted) setLoading(false);
       }
     }
 
-    fetchData();
+    fetchFacilitiesData();
     return () => { isMounted = false; };
-  }, [activeTab, districtId, talukaId, facilityTypeId, ownershipTypeId]);
+  }, [activeTab, districtId, talukaId, facilityTypeId, ownershipTypeId, debouncedFacilitySearch, facilityPage, facilityPageSize]);
 
-  // Tab change handler
+  // 3b. Fetch Offices from live API with server-side pagination
+  useEffect(() => {
+    if (activeTab !== 'Offices') return;
+    let isMounted = true;
+
+    async function fetchOfficesData() {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const filters = {
+          district_id: districtId !== 'All' ? districtId : undefined,
+          taluka_id: talukaId !== 'All' ? talukaId : undefined,
+          ownership_type_id: ownershipTypeId !== 'All' ? ownershipTypeId : undefined,
+          search: debouncedOfficeSearch.trim() || undefined,
+          page: officePage,
+          page_size: officePageSize
+        };
+
+        const response = await getOffices(filters);
+
+        if (isMounted) {
+          setOfficeRecords(response.results || []);
+          setOfficePagination(response.pagination || {
+            page: officePage,
+            page_size: officePageSize,
+            total: response.results?.length || 0,
+            total_pages: 1,
+            has_next: false,
+            has_previous: false
+          });
+          setError(null);
+        }
+      } catch {
+        if (isMounted) {
+          setError('Unable to connect to the backend API.');
+          setOfficeRecords([]);
+          setOfficePagination({
+            page: officePage,
+            page_size: officePageSize,
+            total: 0,
+            total_pages: 0,
+            has_next: false,
+            has_previous: false
+          });
+        }
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+
+    fetchOfficesData();
+    return () => { isMounted = false; };
+  }, [activeTab, districtId, talukaId, ownershipTypeId, debouncedOfficeSearch, officePage, officePageSize]);
+
+  // Derived values for active tab view
+  const records = activeTab === 'Offices' ? officeRecords : facilityRecords;
+  const currentPage = activeTab === 'Offices' ? officePage : facilityPage;
+  const pageSize = activeTab === 'Offices' ? officePageSize : facilityPageSize;
+  const pagination = activeTab === 'Offices' ? officePagination : facilityPagination;
+  const searchTerm = activeTab === 'Offices' ? officeSearch : facilitySearch;
+
+  // Tab change handler - preserves each tab's page and page size
   const handleTabChange = (tab) => {
     setActiveTab(tab);
-    setFacilityTypeId('All');
-    setCurrentPage(1);
     navigate(tab === 'Offices' ? '/offices' : '/facilities');
   };
 
-  // Reset all filters to default state
+  // Reset filters for active tab
   const handleResetFilters = () => {
     setDistrictId('All');
     setTalukaId('All');
-    setFacilityTypeId('All');
-    setOwnershipTypeId('All');
-    setSearchTerm('');
     setTalukas([]);
-    setCurrentPage(1);
+    setOwnershipTypeId('All');
+
+    if (activeTab === 'Offices') {
+      setOfficeSearch('');
+      setDebouncedOfficeSearch('');
+      setOfficePage(1);
+    } else {
+      setFacilityTypeId('All');
+      setFacilitySearch('');
+      setDebouncedFacilitySearch('');
+      setFacilityPage(1);
+    }
   };
 
-  // Client-side text search over live records
-  const filteredRecords = records.filter((item) => {
-    if (!searchTerm.trim()) return true;
-    const q = searchTerm.toLowerCase();
-    const matchName = String(item.name || '').toLowerCase().includes(q);
-    const matchTaluka = String(item.taluka || '').toLowerCase().includes(q);
-    const matchAddress = String(item.address || '').toLowerCase().includes(q);
-    return matchName || matchTaluka || matchAddress;
-  });
+  const handlePageSizeChange = (newSize) => {
+    if (activeTab === 'Offices') {
+      if (officePageSize !== newSize) {
+        setOfficePageSize(newSize);
+        setOfficePage(1);
+      }
+    } else {
+      if (facilityPageSize !== newSize) {
+        setFacilityPageSize(newSize);
+        setFacilityPage(1);
+      }
+    }
+  };
 
-  // Calculate pagination slice
-  const totalPages = Math.ceil(filteredRecords.length / pageSize) || 1;
-  const displayedRecords = filteredRecords.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  );
+  const handlePreviousPage = () => {
+    if (activeTab === 'Offices') {
+      setOfficePage((p) => Math.max(1, p - 1));
+    } else {
+      setFacilityPage((p) => Math.max(1, p - 1));
+    }
+  };
+
+  const handleNextPage = () => {
+    if (activeTab === 'Offices') {
+      setOfficePage((p) => p + 1);
+    } else {
+      setFacilityPage((p) => p + 1);
+    }
+  };
 
   return (
     <div>
@@ -296,8 +429,11 @@ function Facilities() {
             placeholder="Search name, taluka..."
             value={searchTerm}
             onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setCurrentPage(1);
+              if (activeTab === 'Offices') {
+                setOfficeSearch(e.target.value);
+              } else {
+                setFacilitySearch(e.target.value);
+              }
             }}
           />
         </div>
@@ -308,7 +444,14 @@ function Facilities() {
           <select
             className="filter-select"
             value={districtId}
-            onChange={(e) => setDistrictId(e.target.value)}
+            onChange={(e) => {
+              setDistrictId(e.target.value);
+              if (activeTab === 'Offices') {
+                setOfficePage(1);
+              } else {
+                setFacilityPage(1);
+              }
+            }}
           >
             <option value="All">All Districts</option>
             {districts.map((d) => (
@@ -330,7 +473,11 @@ function Facilities() {
             disabled={districtId === 'All' || talukasLoading}
             onChange={(e) => {
               setTalukaId(e.target.value);
-              setCurrentPage(1);
+              if (activeTab === 'Offices') {
+                setOfficePage(1);
+              } else {
+                setFacilityPage(1);
+              }
             }}
           >
             <option value="All">
@@ -353,7 +500,7 @@ function Facilities() {
               value={facilityTypeId}
               onChange={(e) => {
                 setFacilityTypeId(e.target.value);
-                setCurrentPage(1);
+                setFacilityPage(1);
               }}
             >
               <option value="All">All Facility Types</option>
@@ -374,7 +521,11 @@ function Facilities() {
             value={ownershipTypeId}
             onChange={(e) => {
               setOwnershipTypeId(e.target.value);
-              setCurrentPage(1);
+              if (activeTab === 'Offices') {
+                setOfficePage(1);
+              } else {
+                setFacilityPage(1);
+              }
             }}
           >
             <option value="All">All Ownership Types</option>
@@ -405,7 +556,7 @@ function Facilities() {
         subtitle={
           loading
             ? 'Loading live data...'
-            : `Showing ${displayedRecords.length} of ${filteredRecords.length} records (Click row to inspect)`
+            : `Showing ${records.length} of ${pagination.total.toLocaleString()} records (Click row to inspect)`
         }
       >
         <div className="table-container">
@@ -438,8 +589,8 @@ function Facilities() {
                     Unable to connect to the backend API.
                   </td>
                 </tr>
-              ) : displayedRecords.length > 0 ? (
-                displayedRecords.map((item) => (
+              ) : records.length > 0 ? (
+                records.map((item) => (
                   <tr
                     key={item.id}
                     className="clickable-row"
@@ -509,33 +660,43 @@ function Facilities() {
 
         {/* Pagination Bar */}
         <div className="pagination-bar">
-          <div>
-            Showing Page <strong>{currentPage}</strong> of <strong>{totalPages}</strong> ({filteredRecords.length} total)
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '13px', color: '#475569' }}>Page Size:</span>
+            {[10, 20, 50, 100].map((size) => (
+              <button
+                key={size}
+                type="button"
+                className={`pagination-btn ${pageSize === size ? 'active' : ''}`}
+                style={{
+                  minWidth: '32px',
+                  padding: '3px 8px',
+                  fontSize: '12px',
+                  fontWeight: pageSize === size ? 700 : 500
+                }}
+                disabled={loading}
+                onClick={() => handlePageSizeChange(size)}
+              >
+                {size}
+              </button>
+            ))}
           </div>
-          <div className="pagination-controls">
+          <div className="pagination-controls" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <button
               type="button"
               className="pagination-btn"
-              disabled={currentPage <= 1 || loading}
-              onClick={() => setCurrentPage((p) => p - 1)}
+              disabled={!pagination.has_previous || loading}
+              onClick={handlePreviousPage}
             >
               Previous
             </button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-              <button
-                key={p}
-                type="button"
-                className={`pagination-btn ${p === currentPage ? 'active' : ''}`}
-                onClick={() => setCurrentPage(p)}
-              >
-                {p}
-              </button>
-            ))}
+            <span style={{ fontSize: '13px', fontWeight: 600, color: '#334155', padding: '0 4px' }}>
+              Page {pagination.page || currentPage} of {pagination.total_pages || 1}
+            </span>
             <button
               type="button"
               className="pagination-btn"
-              disabled={currentPage >= totalPages || loading}
-              onClick={() => setCurrentPage((p) => p + 1)}
+              disabled={!pagination.has_next || loading}
+              onClick={handleNextPage}
             >
               Next
             </button>
