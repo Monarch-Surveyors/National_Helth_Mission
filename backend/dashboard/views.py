@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from sqlalchemy import String, and_, cast, func
+from sqlalchemy import String, and_, cast, func, or_
 from sqlalchemy.orm import joinedload
 
 from .db_models import (
@@ -23,6 +23,9 @@ from .db_models import (
 # Helpers
 # ---------------------------------------------------------------------------
 
+ALLOWED_PAGE_SIZES = (10, 20, 50, 100)
+
+
 def _parse_int(request, name):
     value = request.GET.get(name)
 
@@ -33,6 +36,36 @@ def _parse_int(request, name):
         return int(value)
     except (TypeError, ValueError):
         raise ValueError(f"{name} must be an integer")
+
+
+def _parse_pagination(request):
+    raw_page = request.GET.get("page")
+    if raw_page in (None, ""):
+        page = 1
+    else:
+        try:
+            page = int(raw_page)
+        except (TypeError, ValueError):
+            raise ValueError("page must be an integer greater than or equal to 1")
+        if page < 1:
+            raise ValueError("page must be an integer greater than or equal to 1")
+
+    raw_page_size = request.GET.get("page_size")
+    if raw_page_size in (None, ""):
+        page_size = 10
+    else:
+        try:
+            page_size = int(raw_page_size)
+        except (TypeError, ValueError):
+            raise ValueError(
+                "page_size must be an integer in (10, 20, 50, 100) and cannot exceed 100"
+            )
+        if page_size not in ALLOWED_PAGE_SIZES or page_size > 100:
+            raise ValueError(
+                "page_size must be an integer in (10, 20, 50, 100) and cannot exceed 100"
+            )
+
+    return page, page_size
 
 
 def _safe_number(value):
@@ -59,6 +92,7 @@ def _facility_query(session, request):
     taluka_id = _parse_int(request, "taluka_id")
     facility_type_id = _parse_int(request, "facility_type_id")
     ownership_type_id = _parse_int(request, "ownership_type_id")
+    search = request.GET.get("search")
 
     if district_id is not None:
         query = query.filter(HealthFacility.district_id == district_id)
@@ -76,6 +110,10 @@ def _facility_query(session, request):
             HealthFacility.ownership_type_id == ownership_type_id
         )
 
+    if search and search.strip():
+        term = f"%{search.strip()}%"
+        query = query.filter(HealthFacility.facility_name.ilike(term))
+
     return query
 
 
@@ -85,6 +123,7 @@ def _office_query(session, request):
     district_id = _parse_int(request, "district_id")
     taluka_id = _parse_int(request, "taluka_id")
     ownership_type_id = _parse_int(request, "ownership_type_id")
+    search = request.GET.get("search")
 
     if district_id is not None:
         query = query.filter(Office.district_id == district_id)
@@ -94,6 +133,15 @@ def _office_query(session, request):
 
     if ownership_type_id is not None:
         query = query.filter(Office.ownership_type_id == ownership_type_id)
+
+    if search and search.strip():
+        term = f"%{search.strip()}%"
+        query = query.filter(
+            or_(
+                Office.office_name.ilike(term),
+                Office.facility_name.ilike(term),
+            )
+        )
 
     return query
 
@@ -287,8 +335,23 @@ def facilities(request):
     session = SessionLocal()
 
     try:
-        query = (
-            _facility_query(session, request)
+        page, page_size = _parse_pagination(request)
+        base_query = _facility_query(session, request)
+
+        total = base_query.order_by(None).count()
+
+        if total == 0:
+            total_pages = 0
+            has_next = False
+            has_previous = False
+        else:
+            total_pages = (total + page_size - 1) // page_size
+            has_next = page < total_pages
+            has_previous = page > 1
+
+        offset = (page - 1) * page_size
+        rows = (
+            base_query
             .options(
                 joinedload(HealthFacility.facility_type),
                 joinedload(HealthFacility.district),
@@ -296,59 +359,72 @@ def facilities(request):
                 joinedload(HealthFacility.ownership_type),
             )
             .order_by(HealthFacility.id)
+            .offset(offset)
+            .limit(page_size)
+            .all()
         )
 
-        rows = query.all()
+        results = [
+            {
+                "id": row.id,
+                "source_sn": row.source_sn,
+                "facility_name": row.facility_name,
+                "facility_type": (
+                    {
+                        "id": row.facility_type.id,
+                        "code": row.facility_type.code,
+                        "label": row.facility_type.label,
+                    }
+                    if row.facility_type
+                    else None
+                ),
+                "district": (
+                    {
+                        "id": row.district.id,
+                        "name": row.district.name,
+                    }
+                    if row.district
+                    else None
+                ),
+                "taluka": (
+                    {
+                        "id": row.taluka.id,
+                        "name": row.taluka.name,
+                    }
+                    if row.taluka
+                    else None
+                ),
+                "ownership_type": (
+                    {
+                        "id": row.ownership_type.id,
+                        "label": row.ownership_type.label,
+                    }
+                    if row.ownership_type
+                    else None
+                ),
+                "property_land_address": row.property_land_address,
+                "pin_code": row.pin_code,
+                "survey_gat_cts_no": row.survey_gat_cts_no,
+                "total_land_area_sqm": row.total_land_area_sqm,
+                "ownership_doc_available": row.ownership_doc_available,
+                "incharge_name_contact": row.incharge_name_contact,
+                "remarks": row.remarks,
+            }
+            for row in rows
+        ]
 
         return Response(
-            [
-                {
-                    "id": row.id,
-                    "source_sn": row.source_sn,
-                    "facility_name": row.facility_name,
-                    "facility_type": (
-                        {
-                            "id": row.facility_type.id,
-                            "code": row.facility_type.code,
-                            "label": row.facility_type.label,
-                        }
-                        if row.facility_type
-                        else None
-                    ),
-                    "district": (
-                        {
-                            "id": row.district.id,
-                            "name": row.district.name,
-                        }
-                        if row.district
-                        else None
-                    ),
-                    "taluka": (
-                        {
-                            "id": row.taluka.id,
-                            "name": row.taluka.name,
-                        }
-                        if row.taluka
-                        else None
-                    ),
-                    "ownership_type": (
-                        {
-                            "id": row.ownership_type.id,
-                            "label": row.ownership_type.label,
-                        }
-                        if row.ownership_type
-                        else None
-                    ),
-                    "property_land_address": row.property_land_address,
-                    "pin_code": row.pin_code,
-                    "survey_gat_cts_no": row.survey_gat_cts_no,
-                    "total_land_area_sqm": row.total_land_area_sqm,
-                    "ownership_doc_available": row.ownership_doc_available,
-                    "incharge_name_contact": row.incharge_name_contact,
-                    "remarks": row.remarks,
-                }
-                for row in rows
-            ]
+            {
+                "results": results,
+                "pagination": {
+                    "page": page,
+                    "page_size": page_size,
+                    "total": total,
+                    "total_pages": total_pages,
+                    "has_next": has_next,
+                    "has_previous": has_previous,
+                },
+            }
         )
 
     except ValueError as exc:
@@ -363,60 +439,88 @@ def offices(request):
     session = SessionLocal()
 
     try:
-        query = (
-            _office_query(session, request)
+        page, page_size = _parse_pagination(request)
+        base_query = _office_query(session, request)
+
+        total = base_query.order_by(None).count()
+
+        if total == 0:
+            total_pages = 0
+            has_next = False
+            has_previous = False
+        else:
+            total_pages = (total + page_size - 1) // page_size
+            has_next = page < total_pages
+            has_previous = page > 1
+
+        offset = (page - 1) * page_size
+        rows = (
+            base_query
             .options(
                 joinedload(Office.district),
                 joinedload(Office.taluka),
                 joinedload(Office.ownership_type),
             )
             .order_by(Office.id)
+            .offset(offset)
+            .limit(page_size)
+            .all()
         )
 
-        rows = query.all()
+        results = [
+            {
+                "id": row.id,
+                "source_sn": row.source_sn,
+                "office_name": row.office_name,
+                "facility_name": row.facility_name,
+                "district": (
+                    {
+                        "id": row.district.id,
+                        "name": row.district.name,
+                    }
+                    if row.district
+                    else None
+                ),
+                "taluka": (
+                    {
+                        "id": row.taluka.id,
+                        "name": row.taluka.name,
+                    }
+                    if row.taluka
+                    else None
+                ),
+                "property_land_address": row.property_land_address,
+                "pin_code": row.pin_code,
+                "survey_gat_cts_no": row.survey_gat_cts_no,
+                "total_land_area_sqm": row.total_land_area_sqm,
+                "ownership_type": (
+                    {
+                        "id": row.ownership_type.id,
+                        "label": row.ownership_type.label,
+                    }
+                    if row.ownership_type
+                    else None
+                ),
+                "ownership_doc_available": row.ownership_doc_available,
+                "incharge_name_contact": row.incharge_name_contact,
+                "incharge_contact": row.incharge_contact,
+                "remarks": row.remarks,
+            }
+            for row in rows
+        ]
 
         return Response(
-            [
-                {
-                    "id": row.id,
-                    "source_sn": row.source_sn,
-                    "office_name": row.office_name,
-                    "facility_name": row.facility_name,
-                    "district": (
-                        {
-                            "id": row.district.id,
-                            "name": row.district.name,
-                        }
-                        if row.district
-                        else None
-                    ),
-                    "taluka": (
-                        {
-                            "id": row.taluka.id,
-                            "name": row.taluka.name,
-                        }
-                        if row.taluka
-                        else None
-                    ),
-                    "property_land_address": row.property_land_address,
-                    "pin_code": row.pin_code,
-                    "survey_gat_cts_no": row.survey_gat_cts_no,
-                    "total_land_area_sqm": row.total_land_area_sqm,
-                    "ownership_type": (
-                        {
-                            "id": row.ownership_type.id,
-                            "label": row.ownership_type.label,
-                        }
-                        if row.ownership_type
-                        else None
-                    ),
-                    "ownership_doc_available": row.ownership_doc_available,
-                    "incharge_name_contact": row.incharge_name_contact,
-                    "incharge_contact": row.incharge_contact,
-                    "remarks": row.remarks,
-                }
-                for row in rows
-            ]
+            {
+                "results": results,
+                "pagination": {
+                    "page": page,
+                    "page_size": page_size,
+                    "total": total,
+                    "total_pages": total_pages,
+                    "has_next": has_next,
+                    "has_previous": has_previous,
+                },
+            }
         )
 
     except ValueError as exc:

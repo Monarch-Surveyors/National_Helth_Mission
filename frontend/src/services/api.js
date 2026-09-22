@@ -240,36 +240,87 @@ export async function getTalukas(districtId = null) {
 }
 
 /**
- * GET /api/facilities/?district_id=...&taluka_id=...&facility_type_id=...&ownership_type_id=...
- * Retrieves health facility records matching the specified numeric ID filters.
+ * GET /api/facilities/?district_id=...&taluka_id=...&facility_type_id=...&ownership_type_id=...&search=...&page=...&page_size=...
+ * Retrieves server-side paginated health facility records matching specified filters.
  */
 export async function getFacilities(filters = {}) {
   const params = {};
-  if (filters.district_id && filters.district_id !== 'All') params.district_id = filters.district_id;
-  if (filters.taluka_id && filters.taluka_id !== 'All') params.taluka_id = filters.taluka_id;
-  if (filters.facility_type_id && filters.facility_type_id !== 'All') params.facility_type_id = filters.facility_type_id;
-  if (filters.ownership_type_id && filters.ownership_type_id !== 'All') params.ownership_type_id = filters.ownership_type_id;
+  const districtId = filters.district_id ?? filters.districtId;
+  const talukaId = filters.taluka_id ?? filters.talukaId;
+  const facilityTypeId = filters.facility_type_id ?? filters.facilityTypeId;
+  const ownershipTypeId = filters.ownership_type_id ?? filters.ownershipTypeId;
+  const search = filters.search ?? filters.searchTerm ?? filters.q;
+  const page = filters.page ?? 1;
+  const pageSize = filters.page_size ?? filters.pageSize ?? 10;
+
+  if (districtId && districtId !== 'All') params.district_id = districtId;
+  if (talukaId && talukaId !== 'All') params.taluka_id = talukaId;
+  if (facilityTypeId && facilityTypeId !== 'All') params.facility_type_id = facilityTypeId;
+  if (ownershipTypeId && ownershipTypeId !== 'All') params.ownership_type_id = ownershipTypeId;
+  if (search && String(search).trim()) params.search = String(search).trim();
+  if (page) params.page = page;
+  if (pageSize) params.page_size = pageSize;
 
   const url = buildUrl(FACILITY_ENDPOINTS.FACILITIES, params);
   const data = await fetchJson(url);
-  const rawList = extractResults(data);
-  return rawList.map(normalizeFacility);
+
+  const rawList = Array.isArray(data?.results) ? data.results : extractResults(data);
+  const results = rawList.map(normalizeFacility);
+
+  const pagination = data?.pagination || {
+    page: Number(page) || 1,
+    page_size: Number(pageSize) || 10,
+    total: results.length,
+    total_pages: Math.ceil(results.length / (Number(pageSize) || 10)) || (results.length > 0 ? 1 : 0),
+    has_next: false,
+    has_previous: false
+  };
+
+  return {
+    results,
+    pagination
+  };
 }
 
 /**
- * GET /api/offices/?district_id=...&taluka_id=...&ownership_type_id=...
- * Retrieves administrative office records matching the specified numeric ID filters.
+ * GET /api/offices/?district_id=...&taluka_id=...&ownership_type_id=...&search=...&page=...&page_size=...
+ * Retrieves server-side paginated administrative office records matching specified filters.
  */
 export async function getOffices(filters = {}) {
   const params = {};
-  if (filters.district_id && filters.district_id !== 'All') params.district_id = filters.district_id;
-  if (filters.taluka_id && filters.taluka_id !== 'All') params.taluka_id = filters.taluka_id;
-  if (filters.ownership_type_id && filters.ownership_type_id !== 'All') params.ownership_type_id = filters.ownership_type_id;
+  const districtId = filters.district_id ?? filters.districtId;
+  const talukaId = filters.taluka_id ?? filters.talukaId;
+  const ownershipTypeId = filters.ownership_type_id ?? filters.ownershipTypeId;
+  const search = filters.search ?? filters.searchTerm ?? filters.q;
+  const page = filters.page ?? 1;
+  const pageSize = filters.page_size ?? filters.pageSize ?? 10;
+
+  if (districtId && districtId !== 'All') params.district_id = districtId;
+  if (talukaId && talukaId !== 'All') params.taluka_id = talukaId;
+  if (ownershipTypeId && ownershipTypeId !== 'All') params.ownership_type_id = ownershipTypeId;
+  if (search && String(search).trim()) params.search = String(search).trim();
+  if (page) params.page = page;
+  if (pageSize) params.page_size = pageSize;
 
   const url = buildUrl(OFFICE_ENDPOINTS.OFFICES, params);
   const data = await fetchJson(url);
-  const rawList = extractResults(data);
-  return rawList.map(normalizeOffice);
+
+  const rawList = Array.isArray(data?.results) ? data.results : extractResults(data);
+  const results = rawList.map(normalizeOffice);
+
+  const pagination = data?.pagination || {
+    page: Number(page) || 1,
+    page_size: Number(pageSize) || 10,
+    total: results.length,
+    total_pages: Math.ceil(results.length / (Number(pageSize) || 10)) || (results.length > 0 ? 1 : 0),
+    has_next: false,
+    has_previous: false
+  };
+
+  return {
+    results,
+    pagination
+  };
 }
 
 // ==========================================
@@ -389,11 +440,23 @@ export async function getAuthTest() {
   return await fetchJson(url);
 }
 
+/**
+ * GET /api/map-data/
+ * Retrieves geographic health infrastructure data (KML / GeoJSON).
+ * Resolves safely to null when no geographic dataset is published yet.
+ */
+export async function getHealthInfrastructureMapData() {
+  // Inspect if a geographic endpoint is provided. Currently no geographic table or coordinates exist in the database.
+  // In the future, if a backend geographic endpoint is added (e.g. /api/map-data/), this will fetch it.
+  return null;
+}
+
 export const nhmApi = {
   API_BASE_URL,
   buildUrl,
   fetchJson,
   getAuthTest,
+  getHealthInfrastructureMapData,
   getFacilityTypes,
   getOwnershipTypes,
   getDistricts,

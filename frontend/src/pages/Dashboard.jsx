@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import KPICard from '../components/KPICard';
 import FilterBar from '../components/FilterBar';
+import HealthInfrastructureMap from '../components/HealthInfrastructureMap';
 import { ErrorState, SelectBox } from '../components/common';
 import {
   getAnalyticsOverview,
@@ -378,6 +379,15 @@ function Dashboard() {
           />
         </div>
       )}
+
+      {/* Health Infrastructure Map Section */}
+      <div style={{ marginTop: '24px' }}>
+        <HealthInfrastructureMap
+          selectedDistrict={selectedDistrict}
+          selectedFacilityType={selectedFacilityType}
+          selectedOwnership={selectedOwnership}
+        />
+      </div>
     </div>
   );
 }
