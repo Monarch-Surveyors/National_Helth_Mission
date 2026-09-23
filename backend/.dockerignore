@@ -1,0 +1,22 @@
+# Python byte code and caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Local virtual environment
+venv/
+.venv/
+env/
+
+# Local environment files (production env is supplied via docker-compose env_file)
+.env
+.env.local
+
+# Git and OS metadata
+.git/
+.gitignore
+.DS_Store
+*.log
+
