@@ -4,11 +4,7 @@ import { defineConfig, loadEnv } from 'vite'
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const backendTarget = env.VITE_BACKEND_URL
-
-  if (!backendTarget) {
-    throw new Error('VITE_BACKEND_URL is missing in frontend/.env')
-  }
+  const backendTarget = env.VITE_BACKEND_URL || 'http://localhost:8000'
 
   return {
     plugins: [react()],
