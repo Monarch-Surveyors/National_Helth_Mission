@@ -1348,147 +1348,11 @@ function Analytics() {
         </ChartCard>
       </div>
 
-      {/* SECTION 2: OWNERSHIP DISTRIBUTION */}
-      <div style={{ marginBottom: '24px' }}>
-        <ChartCard
-          title="2. Ownership Distribution"
-          subtitle="Breakdown of facilities by ownership category"
-          badge={`${filteredOwnership.length} Categories`}
-        >
-          {errors.ownership ? (
-            <ErrorState
-              title="Failed to load ownership analytics"
-              message={errors.ownership}
-              onRetry={loadAnalytics}
-              compact
-            />
-          ) : loading ? (
-            <LoadingState message="Loading ownership distribution..." height={320} />
-          ) : filteredOwnership.length === 0 ? (
-            <EmptyState message="No ownership categories match selected filter." height={320} />
-          ) : (
-            <div style={{ maxHeight: '360px', overflowY: 'auto', paddingRight: '4px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '10px' }}>
-                {filteredOwnership.map((item, idx) => {
-                  const percent = calculatePercent(item.facility_count, overview?.facilities);
-                  return (
-                    <div
-                      key={item.ownership_type_id || idx}
-                      style={{
-                        padding: '10px 14px',
-                        background: '#f8fafc',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '6px'
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                        <span style={{ fontWeight: 600, fontSize: '12px', color: '#1e293b' }}>
-                          {item.label}
-                        </span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span className="badge badge-primary" style={{ fontSize: '11px', fontWeight: 700 }}>
-                            {formatNumber(item.facility_count)}
-                          </span>
-                          <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>
-                            {percent}%
-                          </span>
-                        </div>
-                      </div>
-                      <div style={{ height: '6px', background: '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
-                        <div
-                          style={{
-                            height: '100%',
-                            width: `${percent}%`,
-                            background: PALETTE[idx % PALETTE.length],
-                            borderRadius: '3px'
-                          }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </ChartCard>
-      </div>
-
-      {/* SECTION 4: FACILITIES BY DISTRICT (Scrollable & Sortable) */}
-      <div style={{ marginBottom: '24px' }}>
-        <ChartCard
-          title="3. Facilities by District"
-          subtitle="Statewide health infrastructure distribution across all districts"
-          badge={`${processedDistricts.length} Districts Matching`}
-          action={
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <input
-                type="text"
-                placeholder="Search district..."
-                value={districtSearch}
-                onChange={(e) => setDistrictSearch(e.target.value)}
-                style={{
-                  padding: '4px 10px',
-                  fontSize: '12px',
-                  borderRadius: '4px',
-                  border: '1px solid #cbd5e1',
-                  outline: 'none'
-                }}
-              />
-            </div>
-          }
-        >
-          {errors.distFac ? (
-            <ErrorState
-              title="Failed to load district facilities"
-              message={errors.distFac}
-              onRetry={loadAnalytics}
-              compact
-            />
-          ) : loading ? (
-            <LoadingState message="Loading district facility distribution..." height={360} />
-          ) : displayedDistricts.length === 0 ? (
-            <EmptyState message="No matching districts found for selected filters." height={200} />
-          ) : (
-            <div>
-              <div className="chart-scroll-wrapper">
-                <div style={{ minWidth: `${Math.max(1200, displayedDistricts.length * 34)}px`, width: '100%', height: 380 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={displayedDistricts}
-                      margin={{ top: 15, right: 20, left: 10, bottom: 65 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                      <XAxis
-                        dataKey="district"
-                        tick={{ fill: '#334155', fontSize: 11, fontWeight: 500 }}
-                        interval={0}
-                        angle={-45}
-                        textAnchor="end"
-                      />
-                      <YAxis tick={{ fill: '#64748b', fontSize: 11 }} />
-                      <Tooltip
-                        formatter={(val) => [`${Number(val).toLocaleString()} Facilities`, 'Total Health Facilities']}
-                        contentStyle={{ backgroundColor: '#ffffff', borderRadius: 6, borderColor: '#cbd5e1' }}
-                      />
-                      <Bar dataKey="facility_count" fill="#2563eb" radius={[3, 3, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-              <div style={{ fontSize: '11px', color: '#64748b', marginTop: '6px', display: 'flex', justifyContent: 'space-between' }}>
-                <span>Showing {displayedDistricts.length} of {processedDistricts.length} matching districts.</span>
-                <span>Scroll horizontally to inspect full dataset.</span>
-              </div>
-            </div>
-          )}
-        </ChartCard>
-      </div>
-
-      {/* SECTION 5: OFFICES BY DISTRICT & LAND BY DISTRICT */}
+      {/* SECTION 2 & 3: ADMINISTRATIVE OFFICES BY DISTRICT & LAND FOOTPRINT BY DISTRICT */}
       <div className="charts-grid-2col">
-        {/* Chart 3: Offices by District */}
+        {/* Chart 2: Offices by District */}
         <ChartCard
-          title="4. Administrative Offices by District"
+          title="2. Administrative Offices by District"
           subtitle="Administrative and health office presence across Maharashtra districts"
           badge={`${processedOffices.length} Districts Matching`}
         >
@@ -1551,9 +1415,9 @@ function Analytics() {
           )}
         </ChartCard>
 
-        {/* Chart 5: Land Area by District */}
+        {/* Chart 3: Land Area by District */}
         <ChartCard
-          title="5. Land Footprint by District"
+          title="3. Land Footprint by District"
           subtitle="Total recorded land area and parcels per district"
           badge={`${processedLandDistricts.length} Districts Matching`}
           action={
@@ -1613,11 +1477,11 @@ function Analytics() {
         </ChartCard>
       </div>
 
-      {/* SECTION 6 & 7: DOCUMENTS COMPLETENESS & DATA QUALITY INDEX */}
+      {/* SECTION 4 & 5: DOCUMENTS COMPLETENESS & DATA QUALITY INDEX */}
       <div className="charts-grid-2col">
-        {/* Chart 6: Documents Completeness */}
+        {/* Chart 4: Documents Completeness */}
         <ChartCard
-          title="6. Document Completeness Audit"
+          title="4. Document Completeness Audit"
           subtitle="Availability of important legal and property records"
           badge={`Total ${formatNumber(documentsData?.total_facilities)} Facilities`}
         >
@@ -1673,9 +1537,9 @@ function Analytics() {
           )}
         </ChartCard>
 
-        {/* Chart 7: Data Quality Field Completeness */}
+        {/* Chart 5: Data Quality Field Completeness */}
         <ChartCard
-          title="7. Data Quality Completeness Index"
+          title="5. Data Quality Completeness Index"
           subtitle="Completeness of important facility information"
           badge={`${qualityFields.length || 9} Fields Analyzed`}
         >
@@ -1737,6 +1601,142 @@ function Analytics() {
                   />
                 </RadarChart>
               </ResponsiveContainer>
+            </div>
+          )}
+        </ChartCard>
+      </div>
+
+      {/* SECTION 6: OWNERSHIP DISTRIBUTION */}
+      <div style={{ marginBottom: '24px' }}>
+        <ChartCard
+          title="6. Ownership Distribution"
+          subtitle="Breakdown of facilities by ownership category"
+          badge={`${filteredOwnership.length} Categories`}
+        >
+          {errors.ownership ? (
+            <ErrorState
+              title="Failed to load ownership analytics"
+              message={errors.ownership}
+              onRetry={loadAnalytics}
+              compact
+            />
+          ) : loading ? (
+            <LoadingState message="Loading ownership distribution..." height={320} />
+          ) : filteredOwnership.length === 0 ? (
+            <EmptyState message="No ownership categories match selected filter." height={320} />
+          ) : (
+            <div style={{ maxHeight: '360px', overflowY: 'auto', paddingRight: '4px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '10px' }}>
+                {filteredOwnership.map((item, idx) => {
+                  const percent = calculatePercent(item.facility_count, overview?.facilities);
+                  return (
+                    <div
+                      key={item.ownership_type_id || idx}
+                      style={{
+                        padding: '10px 14px',
+                        background: '#f8fafc',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '6px'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                        <span style={{ fontWeight: 600, fontSize: '12px', color: '#1e293b' }}>
+                          {item.label}
+                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span className="badge badge-primary" style={{ fontSize: '11px', fontWeight: 700 }}>
+                            {formatNumber(item.facility_count)}
+                          </span>
+                          <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>
+                            {percent}%
+                          </span>
+                        </div>
+                      </div>
+                      <div style={{ height: '6px', background: '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
+                        <div
+                          style={{
+                            height: '100%',
+                            width: `${percent}%`,
+                            background: PALETTE[idx % PALETTE.length],
+                            borderRadius: '3px'
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </ChartCard>
+      </div>
+
+      {/* SECTION 7: FACILITIES BY DISTRICT (Scrollable & Sortable) */}
+      <div style={{ marginBottom: '24px' }}>
+        <ChartCard
+          title="7. Facilities by District"
+          subtitle="Statewide health infrastructure distribution across all districts"
+          badge={`${processedDistricts.length} Districts Matching`}
+          action={
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <input
+                type="text"
+                placeholder="Search district..."
+                value={districtSearch}
+                onChange={(e) => setDistrictSearch(e.target.value)}
+                style={{
+                  padding: '4px 10px',
+                  fontSize: '12px',
+                  borderRadius: '4px',
+                  border: '1px solid #cbd5e1',
+                  outline: 'none'
+                }}
+              />
+            </div>
+          }
+        >
+          {errors.distFac ? (
+            <ErrorState
+              title="Failed to load district facilities"
+              message={errors.distFac}
+              onRetry={loadAnalytics}
+              compact
+            />
+          ) : loading ? (
+            <LoadingState message="Loading district facility distribution..." height={360} />
+          ) : displayedDistricts.length === 0 ? (
+            <EmptyState message="No matching districts found for selected filters." height={200} />
+          ) : (
+            <div>
+              <div className="chart-scroll-wrapper">
+                <div style={{ minWidth: `${Math.max(1200, displayedDistricts.length * 34)}px`, width: '100%', height: 380 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={displayedDistricts}
+                      margin={{ top: 15, right: 20, left: 10, bottom: 65 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <XAxis
+                        dataKey="district"
+                        tick={{ fill: '#334155', fontSize: 11, fontWeight: 500 }}
+                        interval={0}
+                        angle={-45}
+                        textAnchor="end"
+                      />
+                      <YAxis tick={{ fill: '#64748b', fontSize: 11 }} />
+                      <Tooltip
+                        formatter={(val) => [`${Number(val).toLocaleString()} Facilities`, 'Total Health Facilities']}
+                        contentStyle={{ backgroundColor: '#ffffff', borderRadius: 6, borderColor: '#cbd5e1' }}
+                      />
+                      <Bar dataKey="facility_count" fill="#2563eb" radius={[3, 3, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+              <div style={{ fontSize: '11px', color: '#64748b', marginTop: '6px', display: 'flex', justifyContent: 'space-between' }}>
+                <span>Showing {displayedDistricts.length} of {processedDistricts.length} matching districts.</span>
+                <span>Scroll horizontally to inspect full dataset.</span>
+              </div>
             </div>
           )}
         </ChartCard>
