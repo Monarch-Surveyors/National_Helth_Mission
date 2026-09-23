@@ -17,5 +17,8 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
+    preview: {
+      allowedHosts: ['nhm.monarchconsultants.co.in', 'localhost', '127.0.0.1']
+    }
   }
 })
