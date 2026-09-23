@@ -210,6 +210,7 @@ function HealthInfrastructureMap({
         </div>
       ) : (
         <div
+          className="health-map-responsive-container"
           style={{
             position: 'relative',
             width: '100%',

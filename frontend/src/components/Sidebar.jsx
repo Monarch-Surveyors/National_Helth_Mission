@@ -62,15 +62,36 @@ function Sidebar({ isOpen, onClose }) {
   ];
 
   return (
-    <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
-      {/* Brand Header */}
-      <div className="sidebar-header">
-        <img src="/nhm-logo.png" alt="NHM Maharashtra Logo" className="sidebar-logo" />
-        <div className="sidebar-brand-text">
-          <h2>NHM Maharashtra</h2>
-          <span>HEALTH INFRASTRUCTURE &amp; ASSET MONITORING</span>
+    <>
+      {/* Mobile Backdrop overlay */}
+      {isOpen && (
+        <div
+          className="sidebar-backdrop"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
+
+      <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
+        {/* Brand Header */}
+        <div className="sidebar-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
+            <img src="/nhm-logo.png" alt="NHM Maharashtra Logo" className="sidebar-logo" />
+            <div className="sidebar-brand-text">
+              <h2>NHM Maharashtra</h2>
+              <span>HEALTH INFRASTRUCTURE &amp; ASSET MONITORING</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="sidebar-close-btn"
+            onClick={onClose}
+            aria-label="Close navigation sidebar"
+            title="Close Menu"
+          >
+            ✕
+          </button>
         </div>
-      </div>
 
       {/* Nav Menu */}
       <nav className="sidebar-nav">
@@ -95,6 +116,7 @@ function Sidebar({ isOpen, onClose }) {
         <div className="sidebar-footer-badge">NHM Portal</div>
       </div>
     </aside>
+    </>
   );
 }
 

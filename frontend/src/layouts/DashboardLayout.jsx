@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
 
@@ -8,10 +8,16 @@ import Navbar from '../components/Navbar';
  *
  * Master shell combining Sidebar, Navbar, and dynamic page content.
  * Uses React state `sidebarOpen` to handle mobile slide-over navigation.
+ * Automatically closes sidebar on route navigation.
  * Uses React Router's `<Outlet />` to render the active page.
  */
 function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const location = useLocation();
+
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname]);
 
   const toggleSidebar = () => {
     setSidebarOpen(prev => !prev);
