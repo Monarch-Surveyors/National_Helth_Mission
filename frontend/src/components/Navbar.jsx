@@ -10,7 +10,7 @@ import { useAuth } from '../auth/AuthContext';
  * - User profile badge showing authenticated Keycloak username
  * - Profile dropdown with user info and Logout link
  */
-function Navbar() {
+function Navbar({ onToggleSidebar }) {
   const { user } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -20,6 +20,19 @@ function Navbar() {
   return (
     <header className="navbar">
       <div className="navbar-left">
+        <button
+          type="button"
+          className="mobile-hamburger-btn"
+          onClick={onToggleSidebar}
+          aria-label="Toggle navigation menu"
+          title="Toggle Navigation Menu"
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </button>
         <div className="navbar-heading">
           <h1 className="navbar-title">Welcome to NHM Maharashtra</h1>
           <p className="navbar-subtitle">

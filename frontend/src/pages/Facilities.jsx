@@ -379,7 +379,7 @@ function Facilities() {
       )}
 
       {/* Navigation Tabs (Facilities / Offices) */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
         <button
           type="button"
           onClick={() => handleTabChange('Facilities')}
@@ -559,7 +559,7 @@ function Facilities() {
             : `Showing ${records.length} of ${pagination.total.toLocaleString()} records (Click row to inspect)`
         }
       >
-        <div className="table-container">
+        <div className="desktop-table-container table-container">
           <table className="data-table">
             <thead>
               <tr>
@@ -656,6 +656,90 @@ function Facilities() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Responsive Cards View */}
+        <div className="mobile-record-cards">
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '32px 16px', color: '#64748b', fontSize: '14px', fontWeight: 600 }}>
+              Loading live data...
+            </div>
+          ) : error ? (
+            <div style={{ textAlign: 'center', padding: '24px 16px', color: '#dc2626', fontWeight: 600 }}>
+              Unable to connect to the backend API.
+            </div>
+          ) : records.length > 0 ? (
+            records.map((item) => (
+              <div
+                key={`mobile-${item.id}`}
+                className="mobile-record-card"
+                onClick={() => setSelectedItem(item)}
+              >
+                <div className="mobile-card-header">
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="mobile-card-title">{item.name}</div>
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
+                      <span className="badge badge-primary">{item.type}</span>
+                      <StatusBadge text={item.status} type={item.status} />
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="pagination-btn"
+                    style={{ fontSize: '11.5px', padding: '4px 10px', color: '#1e3a8a', fontWeight: 700 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedItem(item);
+                    }}
+                  >
+                    View
+                  </button>
+                </div>
+
+                <div className="mobile-card-grid">
+                  <div className="mobile-card-field">
+                    <span className="mobile-field-label">District</span>
+                    <span className="mobile-field-value">{item.district || '--'}</span>
+                  </div>
+                  <div className="mobile-card-field">
+                    <span className="mobile-field-label">Taluka / Block</span>
+                    <span className="mobile-field-value">{item.taluka || '--'}</span>
+                  </div>
+                  <div className="mobile-card-field">
+                    <span className="mobile-field-label">Land Area</span>
+                    <span className="mobile-field-value">{item.landArea || '--'}</span>
+                  </div>
+                  <div className="mobile-card-field">
+                    <span className="mobile-field-label">Ownership</span>
+                    <span className="mobile-field-value">
+                      <span
+                        className={`badge ${
+                          item.ownership === 'Government'
+                            ? 'badge-success'
+                            : item.ownership === 'Rented'
+                            ? 'badge-warning'
+                            : 'badge-neutral'
+                        }`}
+                        style={{ display: 'inline-block' }}
+                      >
+                        {item.ownership || 'Unspecified'}
+                      </span>
+                    </span>
+                  </div>
+                  {item.legalDocument && (
+                    <div className="mobile-card-field full-width">
+                      <span className="mobile-field-label">Legal Document</span>
+                      <span className="mobile-field-value" style={{ fontSize: '12px' }}>{item.legalDocument}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div style={{ textAlign: 'center', padding: '32px 16px', color: '#64748b' }}>
+              No records found for the selected filters.
+            </div>
+          )}
         </div>
 
         {/* Pagination Bar */}

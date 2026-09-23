@@ -299,6 +299,9 @@
 }
 
 .filter-select, .filter-input {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   padding: 8px 12px;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
@@ -765,34 +768,428 @@
   justify-content: flex-end;
 }
 
-/* Mobile responsive drawer */
-@media (max-width: 768px) {
+/* Mobile Navigation & Off-Canvas Styles */
+.mobile-hamburger-btn {
+  display: none;
+}
+
+.sidebar-close-btn {
+  display: none;
+}
+
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(2px);
+  z-index: 1100;
+  cursor: pointer;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Facility & Office Mobile Records */
+.desktop-table-container {
+  display: block;
+}
+
+.mobile-record-cards {
+  display: none;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mobile-record-card {
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.mobile-record-card:hover {
+  border-color: #93c5fd;
+  box-shadow: var(--shadow-md);
+}
+
+.mobile-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #f1f5f9;
+  margin-bottom: 10px;
+}
+
+.mobile-card-title {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #1e3a8a;
+  line-height: 1.3;
+}
+
+.mobile-card-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+}
+
+.mobile-card-field {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.mobile-card-field.full-width {
+  grid-column: span 2;
+}
+
+.mobile-field-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #64748b;
+  margin-bottom: 2px;
+}
+
+.mobile-field-value {
+  font-size: 13px;
+  color: #1e293b;
+  font-weight: 500;
+  word-break: break-word;
+}
+
+/* Health Infrastructure Map Responsive Container */
+.health-map-responsive-container {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* ==========================================================================
+   Responsive Breakpoints
+   ========================================================================== */
+
+/* Desktop Screens (>= 1025px) - Fixed Sidebar alongside Main Content */
+@media (min-width: 1025px) {
+  .app-container {
+    display: block !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
   .sidebar {
-    position: fixed;
-    transform: translateX(-100%);
+    display: flex !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    height: 100vh !important;
+    width: var(--sidebar-width) !important;
+    min-width: var(--sidebar-width) !important;
+    max-width: var(--sidebar-width) !important;
+    flex-shrink: 0 !important;
+    transform: none !important;
+    z-index: 40 !important;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15) !important;
   }
 
-  .sidebar.open {
-    transform: translateX(0);
+  .main-wrapper {
+    width: calc(100% - var(--sidebar-width)) !important;
+    max-width: calc(100% - var(--sidebar-width)) !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    margin-left: var(--sidebar-width) !important;
+    padding: 0 !important;
+    padding-left: 0 !important;
   }
 
-  .mobile-toggle-btn {
-    display: block;
+  .mobile-hamburger-btn,
+  .sidebar-close-btn,
+  .sidebar-backdrop {
+    display: none !important;
+  }
+}
+
+/* Tablet & Smaller (<= 1024px) - Off-Canvas Overlay Drawer with Zero Reserved Space */
+@media (max-width: 1024px) {
+  .app-container {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .main-wrapper {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    margin-left: 0 !important;
+    padding: 0 !important;
+    padding-left: 0 !important;
+    flex: none !important;
   }
 
   .page-container {
-    padding: 16px;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    margin-left: 0 !important;
+    padding: 18px 20px !important;
+    box-sizing: border-box !important;
+  }
+
+  .sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    width: 280px !important;
+    max-width: 82vw !important;
+    z-index: 1200 !important;
+    transform: translateX(-100%) !important;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.25s ease !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    box-shadow: none !important;
+  }
+
+  .sidebar.open {
+    transform: translateX(0) !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.35) !important;
+  }
+
+  .mobile-hamburger-btn {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color);
+    background: #ffffff;
+    color: #1e293b;
+    cursor: pointer;
+    padding: 0;
+    margin-right: 12px;
+    box-shadow: var(--shadow-sm);
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+
+  .mobile-hamburger-btn:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+  }
+
+  .sidebar-close-btn {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    min-height: 34px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #f8fafc;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+
+  .sidebar-close-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
   }
 
   .kpi-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .health-map-responsive-container {
+    height: 380px !important;
+  }
+}
+
+/* Mobile Devices (<= 768px) */
+@media (max-width: 768px) {
+  .navbar {
+    padding: 10px 14px;
+    min-height: 56px;
+  }
+
+  .navbar-title {
+    font-size: 17px;
+  }
+
+  .navbar-subtitle {
+    font-size: 11.5px;
+  }
+
+  .page-container {
+    padding: 14px 12px;
+  }
+
+  .kpi-card {
+    padding: 14px;
+  }
+
+  .kpi-value {
+    font-size: 24px;
+  }
+
+  .filter-card {
+    padding: 14px 16px;
+    margin-bottom: 16px;
+  }
+
+  .filter-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .desktop-table-container {
+    display: none;
+  }
+
+  .mobile-record-cards {
+    display: flex;
+  }
+
+  .pagination-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 12px 14px;
+  }
+
+  .pagination-bar > div {
+    justify-content: center;
+  }
+
+  .pagination-controls {
+    justify-content: center;
+  }
+
+  .modal-backdrop {
+    padding: 12px;
+  }
+
+  .modal-content {
+    width: min(94vw, 650px);
+    max-height: 92vh;
+  }
+
+  .modal-header {
+    padding: 14px 16px;
+  }
+
+  .modal-body {
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .modal-footer {
+    padding: 12px 16px;
   }
 
   .detail-grid {
     grid-template-columns: 1fr;
+    gap: 10px;
   }
 
   .detail-item.full-width {
+    grid-column: span 1;
+  }
+
+  .chart-card-header {
+    padding: 12px 14px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .chart-card-header > div:last-child {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .chart-card-body {
+    padding: 14px;
+  }
+}
+
+/* Small Screens (<= 600px) */
+@media (max-width: 600px) {
+  .health-map-responsive-container {
+    height: 320px !important;
+  }
+
+  .kpi-card {
+    padding: 12px;
+  }
+
+  .kpi-value {
+    font-size: 22px;
+  }
+}
+
+/* Extra Small Screens (<= 480px) */
+@media (max-width: 480px) {
+  .page-container {
+    padding: 12px 8px;
+  }
+
+  .page-title {
+    font-size: 20px;
+  }
+
+  .page-subtitle {
+    font-size: 12px;
+  }
+
+  .navbar-title {
+    font-size: 15px;
+  }
+
+  .navbar-subtitle {
+    display: none;
+  }
+
+  .kpi-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .mobile-card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mobile-card-field.full-width {
     grid-column: span 1;
   }
 }

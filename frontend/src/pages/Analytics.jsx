@@ -1051,7 +1051,7 @@ function Analytics() {
           subtitle="Distribution of registered health facilities by facility type"
           badge={`${facilitiesByType.length || 14} Types`}
           action={
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
               <div className="nhm-ref-total-badge">
                 <div className="nhm-ref-total-icon">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5">
@@ -1146,64 +1146,68 @@ function Analytics() {
                   Scale: Logarithmic (Y-axis) • Exact Counts on Bars
                 </span>
               </div>
-              <ResponsiveContainer width="100%" height={320}>
-                <BarChart
-                  data={filteredTypes}
-                  margin={{ top: 28, right: 15, left: 0, bottom: 45 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis
-                    dataKey="code"
-                    tick={{ fill: '#334155', fontSize: 11, fontWeight: 700 }}
-                    interval={0}
-                    angle={-35}
-                    textAnchor="end"
-                  />
-                  <YAxis
-                    scale="log"
-                    domain={[1, 15000]}
-                    allowDataOverflow
-                    ticks={[1, 10, 100, 1000, 10000]}
-                    tick={{ fill: '#64748b', fontSize: 11 }}
-                    tickFormatter={(val) => Number(val).toLocaleString()}
-                  />
-                  <Tooltip content={<CustomBarTooltip />} />
-                  <Bar
-                    dataKey="facility_count"
-                    radius={[4, 4, 0, 0]}
-                  >
-                    {filteredTypes.map((entry, index) => {
-                      const isSelected = selectedFacilityType === entry.code;
-                      const isDimmed = selectedFacilityType !== 'All' && !isSelected;
-                      return (
-                        <Cell
-                          key={`type-bar-${entry.facility_type_id || entry.code || index}`}
-                          fill={PALETTE[index % PALETTE.length]}
+              <div className="chart-scroll-wrapper">
+                <div style={{ minWidth: '640px', height: 320 }}>
+                  <ResponsiveContainer width="100%" height={320}>
+                    <BarChart
+                      data={filteredTypes}
+                      margin={{ top: 28, right: 15, left: 0, bottom: 45 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <XAxis
+                        dataKey="code"
+                        tick={{ fill: '#334155', fontSize: 11, fontWeight: 700 }}
+                        interval={0}
+                        angle={-35}
+                        textAnchor="end"
+                      />
+                      <YAxis
+                        scale="log"
+                        domain={[1, 15000]}
+                        allowDataOverflow
+                        ticks={[1, 10, 100, 1000, 10000]}
+                        tick={{ fill: '#64748b', fontSize: 11 }}
+                        tickFormatter={(val) => Number(val).toLocaleString()}
+                      />
+                      <Tooltip content={<CustomBarTooltip />} />
+                      <Bar
+                        dataKey="facility_count"
+                        radius={[4, 4, 0, 0]}
+                      >
+                        {filteredTypes.map((entry, index) => {
+                          const isSelected = selectedFacilityType === entry.code;
+                          const isDimmed = selectedFacilityType !== 'All' && !isSelected;
+                          return (
+                            <Cell
+                              key={`type-bar-${entry.facility_type_id || entry.code || index}`}
+                              fill={PALETTE[index % PALETTE.length]}
+                              style={{
+                                cursor: 'pointer',
+                                opacity: isDimmed ? 0.35 : 1,
+                                stroke: isSelected ? '#0f172a' : 'none',
+                                strokeWidth: isSelected ? 2 : 0,
+                                transition: 'opacity 0.2s ease'
+                              }}
+                              onClick={() => handleFacilityTypeClick(entry.code)}
+                            />
+                          );
+                        })}
+                        <LabelList
+                          dataKey="facility_count"
+                          position="top"
+                          offset={6}
+                          formatter={(val) => Number(val || 0).toLocaleString()}
                           style={{
-                            cursor: 'pointer',
-                            opacity: isDimmed ? 0.35 : 1,
-                            stroke: isSelected ? '#0f172a' : 'none',
-                            strokeWidth: isSelected ? 2 : 0,
-                            transition: 'opacity 0.2s ease'
+                            fill: '#0f172a',
+                            fontSize: '10px',
+                            fontWeight: 700
                           }}
-                          onClick={() => handleFacilityTypeClick(entry.code)}
                         />
-                      );
-                    })}
-                    <LabelList
-                      dataKey="facility_count"
-                      position="top"
-                      offset={6}
-                      formatter={(val) => Number(val || 0).toLocaleString()}
-                      style={{
-                        fill: '#0f172a',
-                        fontSize: '10px',
-                        fontWeight: 700
-                      }}
-                    />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
             </div>
           ) : (
             <div className="nhm-infographic-container">
