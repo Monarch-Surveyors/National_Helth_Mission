@@ -1606,75 +1606,10 @@ function Analytics() {
         </ChartCard>
       </div>
 
-      {/* SECTION 6: OWNERSHIP DISTRIBUTION */}
+      {/* SECTION 6: FACILITIES BY DISTRICT (Scrollable & Sortable) */}
       <div style={{ marginBottom: '24px' }}>
         <ChartCard
-          title="6. Ownership Distribution"
-          subtitle="Breakdown of facilities by ownership category"
-          badge={`${filteredOwnership.length} Categories`}
-        >
-          {errors.ownership ? (
-            <ErrorState
-              title="Failed to load ownership analytics"
-              message={errors.ownership}
-              onRetry={loadAnalytics}
-              compact
-            />
-          ) : loading ? (
-            <LoadingState message="Loading ownership distribution..." height={320} />
-          ) : filteredOwnership.length === 0 ? (
-            <EmptyState message="No ownership categories match selected filter." height={320} />
-          ) : (
-            <div style={{ maxHeight: '360px', overflowY: 'auto', paddingRight: '4px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '10px' }}>
-                {filteredOwnership.map((item, idx) => {
-                  const percent = calculatePercent(item.facility_count, overview?.facilities);
-                  return (
-                    <div
-                      key={item.ownership_type_id || idx}
-                      style={{
-                        padding: '10px 14px',
-                        background: '#f8fafc',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '6px'
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                        <span style={{ fontWeight: 600, fontSize: '12px', color: '#1e293b' }}>
-                          {item.label}
-                        </span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span className="badge badge-primary" style={{ fontSize: '11px', fontWeight: 700 }}>
-                            {formatNumber(item.facility_count)}
-                          </span>
-                          <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>
-                            {percent}%
-                          </span>
-                        </div>
-                      </div>
-                      <div style={{ height: '6px', background: '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
-                        <div
-                          style={{
-                            height: '100%',
-                            width: `${percent}%`,
-                            background: PALETTE[idx % PALETTE.length],
-                            borderRadius: '3px'
-                          }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </ChartCard>
-      </div>
-
-      {/* SECTION 7: FACILITIES BY DISTRICT (Scrollable & Sortable) */}
-      <div style={{ marginBottom: '24px' }}>
-        <ChartCard
-          title="7. Facilities by District"
+          title="6. Facilities by District"
           subtitle="Statewide health infrastructure distribution across all districts"
           badge={`${processedDistricts.length} Districts Matching`}
           action={
@@ -1742,10 +1677,10 @@ function Analytics() {
         </ChartCard>
       </div>
 
-      {/* SECTION 8: IPHS 2022 STANDARDS & GAP ASSESSMENT */}
+      {/* SECTION 7: IPHS 2022 STANDARDS & GAP ASSESSMENT */}
       <div style={{ marginBottom: '24px' }}>
         <ChartCard
-          title="8. Indian Public Health Standards (IPHS) 2022 Norms & Gap Assessment"
+          title="7. Indian Public Health Standards (IPHS) 2022 Norms & Gap Assessment"
           subtitle="Assessment of health infrastructure standards and gaps"
           badge={`${filteredIphsRows.length} Requirements Evaluated`}
         >
