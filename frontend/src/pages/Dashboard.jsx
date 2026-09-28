@@ -352,31 +352,6 @@ function Dashboard() {
               </svg>
             }
           />
-          <KPICard
-            title="Facility Types"
-            value={loading ? '--' : formatNumber(computedMetrics?.facilityTypes)}
-            subtitle="Registered Classifications"
-            variant="info"
-            icon={
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
-                <line x1="7" y1="7" x2="7.01" y2="7" />
-              </svg>
-            }
-          />
-          <KPICard
-            title="Total Land Area"
-            value={loading ? '--' : formatArea(computedMetrics?.totalLand)}
-            subtitle="Logged Land Footprint"
-            variant="warning"
-            icon={
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
-                <line x1="8" y1="2" x2="8" y2="18" />
-                <line x1="16" y1="6" x2="16" y2="22" />
-              </svg>
-            }
-          />
         </div>
       )}
 
